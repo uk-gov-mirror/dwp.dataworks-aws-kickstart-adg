@@ -7,3 +7,16 @@
 
 terraform.tf
 aviator_pipeline.yml
+.DS_Store
+.vscode
+**/__pycache__/
+*.pyc
+*.iml
+${log_path}
+**/.venv/**
+derby.log
+metastore_db/
+hsperfdata_root/
+liblz4-java*.so
+root/
+spark-*/
