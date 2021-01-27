@@ -9,3 +9,17 @@ groups:
   - name: pull-request
     jobs:
       - dataworks-aws-kickstart-adg-pr
+  - name: start-cluster
+    jobs:
+      - start-cluster-development
+      - start-cluster-qa
+      - start-cluster-integration
+      - start-cluster-preprod
+      - start-cluster-production
+  - name: stop-cluster
+    jobs:
+      - stop-cluster-development
+      - stop-cluster-qa
+      - stop-cluster-integration
+      - stop-cluster-preprod
+      - stop-cluster-production

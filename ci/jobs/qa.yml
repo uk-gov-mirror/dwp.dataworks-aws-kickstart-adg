@@ -4,8 +4,10 @@ jobs:
     plan:
       - get: dataworks-aws-kickstart-adg
         trigger: true
-        passed:
-          - development
+      - get: emr-ami
+        trigger: true
+      - get: emr-launcher-release
+        trigger: true
       - .: (( inject meta.plan.terraform-bootstrap ))
       - .: (( inject meta.plan.terraform-apply ))
         params:

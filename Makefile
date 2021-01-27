@@ -11,7 +11,7 @@ help:
 
 .PHONY: bootstrap
 bootstrap: ## Bootstrap local environment for first use
-	@make git-hooks
+	make git-hooks
 	pip3 install --user Jinja2 PyYAML boto3
 	@{ \
 		export AWS_PROFILE=$(aws_profile); \
@@ -47,3 +47,12 @@ terraform-workspace-new: ## Creates new Terraform workspace with Concourse remot
 		fly -t aws-concourse execute --config create-workspace.yml --input repo=. -v workspace="$$i" ; \
 	done
 	rm jeff.tf
+
+	.PHONY: get-dependencies
+get-dependencies: ## Get dependencies that are normally managed by pipeline
+	@{ \
+		for github_repository in emr-launcher manage-mysql-user; do \
+			export REPO=$${github_repository}; \
+			./get_lambda_release.sh; \
+		done \
+	}

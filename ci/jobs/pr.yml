@@ -4,6 +4,8 @@ jobs:
       - get: dataworks-aws-kickstart-adg-pr
         trigger: true
         version: every
+      - get: emr-ami
+      - get: emr-launcher-release
       - put: dataworks-aws-kickstart-adg-pr
         params:
           path: dataworks-aws-kickstart-adg-pr

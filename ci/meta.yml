@@ -13,6 +13,7 @@ meta:
           TF_CLI_ARGS_apply: -lock-timeout=300s
           TF_CLI_ARGS_plan: -lock-timeout=300s
           TF_VAR_costcode: ((dataworks.costcode))
+
     terraform-bootstrap:
       task: terraform-bootstrap
       config:
@@ -37,6 +38,7 @@ meta:
           - name: terraform-bootstrap
       params:
         AWS_REGION: eu-west-2
+
     terraform-apply:
       task: terraform-apply
       .: (( inject meta.plan.terraform-common-config ))
@@ -46,6 +48,8 @@ meta:
           args:
             - -exc
             - |
+              export TF_VAR_emr_ami_id=$(cat ../emr-ami/id)
+              export TF_VAR_emr_launcher_zip="{base_path = \"../emr-launcher-release\", version = \"$(cat ../emr-launcher-release/version)\"}"
               cp ../terraform-bootstrap/terraform.tf .
               terraform workspace show
               terraform init
@@ -55,6 +59,9 @@ meta:
         inputs:
           - name: dataworks-aws-kickstart-adg
           - name: terraform-bootstrap
+          - name: emr-ami
+          - name: emr-launcher-release
+
     terraform-plan:
       task: terraform-plan
       .: (( inject meta.plan.terraform-common-config ))
@@ -64,14 +71,74 @@ meta:
           args:
             - -exc
             - |
+              export TF_VAR_emr_ami_id=$(cat ../emr-ami/id)
+              export TF_VAR_emr_launcher_zip="{base_path = \"../emr-launcher-release\", version = \"$(cat ../emr-launcher-release/version)\"}"
               cp ../terraform-bootstrap/terraform.tf .
               terraform workspace show
               terraform init
-              terraform plan $DETAILED_EXITCODE
+              terraform plan
           dir: dataworks-aws-kickstart-adg
         inputs:
           - name: dataworks-aws-kickstart-adg
           - name: terraform-bootstrap
-      params:
-        DETAILED_EXITCODE: -detailed-exitcode
+          - name: emr-ami
+          - name: emr-launcher-release
 
+    start-cluster:
+      task: start-cluster
+      config:
+        platform: linux
+        image_resource:
+          type: docker-image
+          source:
+            repository: ((dataworks.docker_awscli_repository))
+            version: ((dataworks.docker_awscli_version))
+            tag: ((dataworks.docker_awscli_version))
+        params:
+          AWS_ROLE_ARN: arn:aws:iam::((aws_account.management)):role/ci
+          AWS_DEFAULT_REGION: ((dataworks.aws_region))
+        run:
+          path: sh
+          args:
+            - -exc
+            - |
+              export AWS_DEFAULT_REGION
+              source /assume-role
+              set +x
+              export topic_arn=arn:aws:sns:${AWS_DEFAULT_REGION}:${AWS_ACC}:trigger_kickstart_adg_process
+              export message_json=$(cat <<EOF
+              {
+                "additional_step_args": {
+                    "submit-job": ["--correlation_id", "$CORRELATION_ID", "--job_name", "$JOB_NAME", "--module_name", "$MODULE_NAME", "--last_process_dt", "$LAST_PROCESS_DT"]
+                }
+              }
+              EOF
+              )
+              echo $message_json
+              aws sns publish --topic-arn "$topic_arn" --message "$message_json"
+
+    stop-cluster:
+      task: stop-cluster
+      config:
+        platform: linux
+        image_resource:
+          type: docker-image
+          source:
+            repository: ((dataworks.docker_awscli_repository))
+            version: ((dataworks.docker_awscli_version))
+            tag: ((dataworks.docker_awscli_version))
+        params:
+          AWS_ROLE_ARN: arn:aws:iam::((aws_account.management)):role/ci
+          AWS_DEFAULT_REGION: ((dataworks.aws_region))
+        run:
+          path: sh
+          args:
+            - -exc
+            - |
+              export AWS_DEFAULT_REGION
+              source /assume-role
+              set +x
+              for CLUSTER_ID in $(aws emr list-clusters --active | jq -r '.Clusters[] | select(.Name | test("kickstart-analytical-dataset-generator")) | .Id');
+              do
+              aws emr terminate-clusters --cluster-ids $CLUSTER_ID
+              done
