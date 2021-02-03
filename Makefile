@@ -56,3 +56,5 @@ get-dependencies: ## Get dependencies that are normally managed by pipeline
 			./get_lambda_release.sh; \
 		done \
 	}
+build-spark-code:
+	./build_spark_codes.sh;

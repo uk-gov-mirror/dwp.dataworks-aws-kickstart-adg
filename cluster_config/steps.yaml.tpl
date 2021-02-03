@@ -12,6 +12,9 @@ BootstrapActions:
 - Name: "installer"
   ScriptBootstrapAction:
     Path: "s3://${s3_config_bucket}/component/kickstart-analytical-dataset-generation/installer.sh"
+- Name: "download_steps_code"
+  ScriptBootstrapAction:
+    Path: "s3://${s3_config_bucket}/component/kickstart-analytical-dataset-generation/download_steps_code.sh"
 
 Steps:
 - Name: "submit-job"
@@ -23,7 +26,7 @@ Steps:
     - "--conf"
     - "spark.yarn.submit.waitAppCompletion=true"
     - "--py-files"
-    - "s3://${s3_config_bucket}/component/kickstart-analytical-dataset-generation/steps/spark/jobs.zip"
-    - "s3://${s3_config_bucket}/component/kickstart-analytical-dataset-generation/steps/spark/main.py"
+    - "/opt/emr/spark/jobs.zip"
+    - "/opt/emr/spark/main.py"
     Jar: "command-runner.jar"
   ActionOnFailure: "${action_on_failure}"

@@ -89,3 +89,15 @@ resource "aws_s3_bucket_object" "cloudwatch_sh" {
     }
   )
 }
+
+resource "aws_s3_bucket_object" "download_steps_code" {
+  bucket = data.terraform_remote_state.common.outputs.config_bucket.id
+  key    = "component/kickstart-analytical-dataset-generation/download_steps_code.sh"
+  content = templatefile("${path.module}/bootstrap_actions/download_steps_code.sh",
+    {
+      s3_bucket_id     = "${data.terraform_remote_state.common.outputs.config_bucket.id}"
+      s3_bucket_prefix = "component/kickstart-analytical-dataset-generation"
+    }
+  )
+}
+

@@ -78,6 +78,12 @@ cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json <<CWAGEN
             "timezone": "UTC"
           },
           {
+            "file_path": "/var/log/kickstart_adg/download_steps_code.log",
+            "log_group_name": "$${cwa_bootstrap_loggrp_name}",
+            "log_stream_name": "download_steps_code.log",
+            "timezone": "UTC"
+          },
+          {
             "file_path": "/var/log/kickstart_adg/generate-analytical-dataset.log",
             "log_group_name": "$${cwa_steps_loggrp_name}",
             "log_stream_name": "generate-analytical-dataset.log",

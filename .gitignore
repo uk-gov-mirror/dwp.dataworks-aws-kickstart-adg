@@ -22,5 +22,5 @@ root/
 spark-*/
 
 **/*.zip
-
+temp/
 ./temp/*

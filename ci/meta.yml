@@ -76,13 +76,15 @@ meta:
               cp ../terraform-bootstrap/terraform.tf .
               terraform workspace show
               terraform init
-              terraform plan
+              terraform plan $DETAILED_EXITCODE
           dir: dataworks-aws-kickstart-adg
         inputs:
           - name: dataworks-aws-kickstart-adg
           - name: terraform-bootstrap
           - name: emr-ami
           - name: emr-launcher-release
+        params:
+          DETAILED_EXITCODE: -detailed-exitcode
 
     start-cluster:
       task: start-cluster

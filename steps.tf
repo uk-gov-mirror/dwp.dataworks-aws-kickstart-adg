@@ -1,19 +1,27 @@
-data "archive_file" "spark_steps" {
-  type        = "zip"
-  source_dir  = "${path.module}/steps/spark"
-  output_path = "${path.module}/temp/jobs.zip"
+resource "aws_s3_bucket_object" "spark_steps_common" {
+  for_each = fileset("${path.module}/steps/spark/common", "**/*.py")
+  bucket   = data.terraform_remote_state.common.outputs.config_bucket.id
+  key      = "component/kickstart-analytical-dataset-generation/steps/spark/common/${each.value}"
+  source   = "${path.module}/steps/spark/common/${each.value}"
 }
 
-resource "aws_s3_bucket_object" "spark_steps_py_files" {
-  bucket  = data.terraform_remote_state.common.outputs.config_bucket.id
-  key     = "component/kickstart-analytical-dataset-generation/steps/spark/jobs.zip"
-  source  = data.archive_file.spark_steps.output_path
-  etag    = filemd5(data.archive_file.spark_steps.output_path)
+resource "aws_s3_bucket_object" "spark_steps_datagen" {
+  for_each = fileset("${path.module}/steps/spark/datagen", "**/*.py")
+  bucket   = data.terraform_remote_state.common.outputs.config_bucket.id
+  key      = "component/kickstart-analytical-dataset-generation/steps/spark/datagen/${each.value}"
+  source   = "${path.module}/steps/spark/datagen/${each.value}"
+}
+
+resource "aws_s3_bucket_object" "spark_steps_jobs" {
+  for_each = fileset("${path.module}/steps/spark/jobs", "**/*.py")
+  bucket   = data.terraform_remote_state.common.outputs.config_bucket.id
+  key      = "component/kickstart-analytical-dataset-generation/steps/spark/jobs/${each.value}"
+  source   = "${path.module}/steps/spark/jobs/${each.value}"
 }
 
 resource "aws_s3_bucket_object" "spark_steps_main" {
-  bucket  = data.terraform_remote_state.common.outputs.config_bucket.id
-  key     = "component/kickstart-analytical-dataset-generation/steps/spark/main.py"
+  bucket = data.terraform_remote_state.common.outputs.config_bucket.id
+  key    = "component/kickstart-analytical-dataset-generation/steps/spark/main.py"
   content = templatefile("${path.module}/steps/spark/main.py",
     {
       environment                   = local.environment
