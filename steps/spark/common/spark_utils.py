@@ -29,6 +29,7 @@ def read_csv_with_inferschema(logger, spark, sts_token, path, run_id, processing
         df = spark.read.format("csv")\
               .option("header", True)\
               .option("inferSchema", True)\
+              .option("multiline", True)\
               .load(path)
         
         return df

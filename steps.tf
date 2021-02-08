@@ -1,22 +1,55 @@
-resource "aws_s3_bucket_object" "spark_steps_common" {
-  for_each = fileset("${path.module}/steps/spark/common", "**/*.py")
-  bucket   = data.terraform_remote_state.common.outputs.config_bucket.id
-  key      = "component/kickstart-analytical-dataset-generation/steps/spark/common/${each.value}"
-  source   = "${path.module}/steps/spark/common/${each.value}"
+resource "aws_s3_bucket_object" "spark_steps_common_init" {
+  bucket = data.terraform_remote_state.common.outputs.config_bucket.id
+  key    = "component/kickstart-analytical-dataset-generation/steps/spark/common/__init__.py"
+  content = file("${path.module}/steps/spark/common/__init__.py")
 }
 
-resource "aws_s3_bucket_object" "spark_steps_datagen" {
-  for_each = fileset("${path.module}/steps/spark/datagen", "**/*.py")
-  bucket   = data.terraform_remote_state.common.outputs.config_bucket.id
-  key      = "component/kickstart-analytical-dataset-generation/steps/spark/datagen/${each.value}"
-  source   = "${path.module}/steps/spark/datagen/${each.value}"
+resource "aws_s3_bucket_object" "spark_steps_common_logger" {
+  bucket = data.terraform_remote_state.common.outputs.config_bucket.id
+  key    = "component/kickstart-analytical-dataset-generation/steps/spark/common/logger.py"
+  content = file("${path.module}/steps/spark/common/logger.py")
 }
 
-resource "aws_s3_bucket_object" "spark_steps_jobs" {
-  for_each = fileset("${path.module}/steps/spark/jobs", "**/*.py")
-  bucket   = data.terraform_remote_state.common.outputs.config_bucket.id
-  key      = "component/kickstart-analytical-dataset-generation/steps/spark/jobs/${each.value}"
-  source   = "${path.module}/steps/spark/jobs/${each.value}"
+resource "aws_s3_bucket_object" "spark_steps_common_spark_utils" {
+  bucket = data.terraform_remote_state.common.outputs.config_bucket.id
+  key    = "component/kickstart-analytical-dataset-generation/steps/spark/common/spark_utils.py"
+  content = file("${path.module}/steps/spark/common/spark_utils.py")
+}
+
+resource "aws_s3_bucket_object" "spark_steps_common_utils" {
+  bucket = data.terraform_remote_state.common.outputs.config_bucket.id
+  key    = "component/kickstart-analytical-dataset-generation/steps/spark/common/utils.py"
+  content = file("${path.module}/steps/spark/common/utils.py")
+}
+
+resource "aws_s3_bucket_object" "spark_steps_datagen_init" {
+  bucket = data.terraform_remote_state.common.outputs.config_bucket.id
+  key    = "component/kickstart-analytical-dataset-generation/steps/spark/datagen/__init__.py"
+  content = file("${path.module}/steps/spark/datagen/__init__.py")
+}
+
+resource "aws_s3_bucket_object" "spark_steps_datagen_main" {
+  bucket = data.terraform_remote_state.common.outputs.config_bucket.id
+  key    = "component/kickstart-analytical-dataset-generation/steps/spark/datagen/__main__.py"
+  content = file("${path.module}/steps/spark/datagen/__main__.py")
+}
+
+resource "aws_s3_bucket_object" "spark_steps_jobs_init" {
+  bucket = data.terraform_remote_state.common.outputs.config_bucket.id
+  key    = "component/kickstart-analytical-dataset-generation/steps/spark/jobs/__init__.py"
+  content = file("${path.module}/steps/spark/jobs/__init__.py")
+}
+
+resource "aws_s3_bucket_object" "spark_steps_jobs_vacancy_init" {
+  bucket = data.terraform_remote_state.common.outputs.config_bucket.id
+  key    = "component/kickstart-analytical-dataset-generation/steps/spark/jobs/vacancy/__init__.py"
+  content = file("${path.module}/steps/spark/jobs/vacancy/__init__.py")
+}
+
+resource "aws_s3_bucket_object" "spark_steps_jobs_vacancy_main" {
+  bucket = data.terraform_remote_state.common.outputs.config_bucket.id
+  key    = "component/kickstart-analytical-dataset-generation/steps/spark/jobs/vacancy/__main__.py"
+  content = file("${path.module}/steps/spark/jobs/vacancy/__main__.py")
 }
 
 resource "aws_s3_bucket_object" "spark_steps_main" {
@@ -35,7 +68,7 @@ resource "aws_s3_bucket_object" "spark_steps_main" {
       assume_role_within_acct_arn   = aws_iam_role.dw_ksr_s3_readonly.arn
       assume_role_outside_acct_arn  = format("arn:aws:iam::%s:role/%s", lookup(local.source_acc_nos, lookup(local.environment_mapping, local.environment)), var.source_assume_role_name)
       log_path                      = "/var/log/kickstart_adg/generate-analytical-dataset.log"
-      s3_published_bucket           = data.terraform_remote_state.adg.outputs.published_bucket.id
+      s3_published_bucket           = data.terraform_remote_state.common.outputs.published_bucket.arn
       sns_monitoring_topic          = data.terraform_remote_state.security-tools.outputs.sns_topic_london_monitoring.arn
       domain_name                   = local.kickstart_adg_prefix[local.environment]
     }

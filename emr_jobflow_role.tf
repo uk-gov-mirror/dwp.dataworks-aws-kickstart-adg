@@ -21,7 +21,7 @@ data "aws_iam_policy_document" "kickstart_dataset_generator_write_data" {
     ]
 
     resources = [
-      data.terraform_remote_state.adg.outputs.published_bucket.arn
+      data.terraform_remote_state.common.outputs.published_bucket.arn
     ]
   }
 
@@ -36,8 +36,8 @@ data "aws_iam_policy_document" "kickstart_dataset_generator_write_data" {
     ]
 
     resources = [
-      "${data.terraform_remote_state.adg.outputs.published_bucket.arn}/kickstart-analytical-dataset/*",
-      "${data.terraform_remote_state.adg.outputs.published_bucket.arn}/kickstart-metrics/*",
+      "${data.terraform_remote_state.common.outputs.published_bucket.arn}/kickstart-analytical-dataset/*",
+      "${data.terraform_remote_state.common.outputs.published_bucket.arn}/kickstart-metrics/*",
     ]
   }
 
@@ -53,7 +53,7 @@ data "aws_iam_policy_document" "kickstart_dataset_generator_write_data" {
     ]
 
     resources = [
-      "${data.terraform_remote_state.adg.outputs.published_bucket_cmk.arn}",
+      "${data.terraform_remote_state.common.outputs.published_bucket.arn}",
     ]
   }
 }
