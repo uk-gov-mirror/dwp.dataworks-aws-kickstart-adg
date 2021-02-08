@@ -68,7 +68,7 @@ resource "aws_s3_bucket_object" "spark_steps_main" {
       assume_role_within_acct_arn   = aws_iam_role.dw_ksr_s3_readonly.arn
       assume_role_outside_acct_arn  = format("arn:aws:iam::%s:role/%s", lookup(local.source_acc_nos, lookup(local.environment_mapping, local.environment)), var.source_assume_role_name)
       log_path                      = "/var/log/kickstart_adg/generate-analytical-dataset.log"
-      s3_published_bucket           = data.terraform_remote_state.common.outputs.published_bucket.arn
+      s3_published_bucket           = data.terraform_remote_state.common.outputs.published_bucket.id
       sns_monitoring_topic          = data.terraform_remote_state.security-tools.outputs.sns_topic_london_monitoring.arn
       domain_name                   = local.kickstart_adg_prefix[local.environment]
     }
