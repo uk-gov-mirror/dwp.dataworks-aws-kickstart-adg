@@ -13,6 +13,7 @@ def get_spark_session(job_name, module_name):
             .getOrCreate()
     )
     spark.conf.set("spark.scheduler.mode", "FAIR")
+    spark.conf.set("spark.sql.sources.partitionOverwriteMode", "dynamic")
     return spark
 
 def read_csv_with_inferschema(logger, spark, sts_token, path, run_id, processing_dt, args, config):
@@ -57,6 +58,7 @@ def writer_parquet(logger, spark, df, path, run_id, processing_dt, args, config)
 
         df.write\
           .mode('Overwrite')\
+          .partitionBy("date_uploaded")\
           .parquet(path)
         return True
     except Exception as e:
@@ -70,17 +72,8 @@ def writer_parquet(logger, spark, df, path, run_id, processing_dt, args, config)
 
 def get_hive_schema(logger, df, run_id, processing_dt, args, config):
     try:
-        schema = []
-        schema_dict = {item[0]: item[1] for item in df.dtypes}
-        count=1
-        for column, datatype in schema_dict.items():
-            if count == len(schema_dict):
-                total = f"{column} {datatype}"
-            else:
-                total = f"{column} {datatype}, \n"
-            schema.append(total)
-            count += 1
-        return ''.join(schema)
+        schema = ',\n'.join([f"{item[0]} {item[1]}" for item in df.dtypes if "date_uploaded" not in item])
+        return schema
     except BaseException as e:
         logger.error("Error while generating the schema for correlation id %s because of %s",
         args.correlation_id,
@@ -102,6 +95,7 @@ def create_hive_tables_on_published(logger, spark, collection_name, df, path, ru
         CREATE EXTERNAL TABLE IF NOT EXISTS {src_hive_table} (
         {schema}
         ) STORED AS PARQUET 
+        PARTITIONED BY (date_uploaded DATE)
         LOCATION '{path}'
         """
         spark.sql(src_hive_drop_query)
@@ -117,7 +111,8 @@ def create_hive_tables_on_published(logger, spark, collection_name, df, path, ru
 def transformation(logger, spark, df, run_id, processing_dt, args, config):
     try:
         renamed_df = df.select([F.col(col).alias(re.sub("[^0-9a-zA-Z$]+", "", col)) for col in df.columns])
-        return renamed_df
+        add_new_col_df = renamed_df.withColumn("date_uploaded", F.lit(processing_dt))
+        return add_new_col_df
 
     except BaseException as ex:
         logger.error("Problem while applying transformation for correlation Id: %s because of error: %s",args.correlation_id, str(ex))
