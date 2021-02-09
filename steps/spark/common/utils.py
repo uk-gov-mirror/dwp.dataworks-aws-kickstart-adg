@@ -74,8 +74,8 @@ def get_log_start_of_batch(logger, processing_dt, args, config):
         )
         if not response['Items']:
             put_item(table, run_id, processing_dt, args, config, status=config["DEFAULT"]["In_Progress_Status"])
-        elif response["Items"][0]['Status'].lower() == "completed":
-            run_id=response["Items"][0][config["DEFAULT"]["audit_table_range_key"]] +  1
+        else:
+            run_id=response["Items"][0][config["DEFAULT"]["audit_table_range_key"]] + 1
             put_item(table, run_id, processing_dt, args, config, status=config["DEFAULT"]["In_Progress_Status"])
     
     except BaseException as ex:
