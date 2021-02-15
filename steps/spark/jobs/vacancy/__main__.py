@@ -1,33 +1,35 @@
 import importlib
+import sys
 from datetime import datetime, timedelta, date
 
 def execute(logger, spark, args, config):
     
-    logger.info(f"Importing the required libraries from common module")
+    logger.info(f"Importing the required libraries")
     
     utils = importlib.import_module("common.utils")
     spark_utils = importlib.import_module("common.spark_utils")
-
-    logger.info(f"Importing the required libraries from datagen module")
-
     test_datagen = importlib.import_module("datagen.__main__")
-    
-    logger.info(f"Extracting the secrets for correlation id {args.correlation_id}")
-    
-    secrets_response = utils.retrieve_secrets(config["DEFAULT"]["aws_secret_name"])
-    
-    logger.info(f"Extracting the collection names correlation id {args.correlation_id}")
-    
-    collections = utils.get_collections(logger, secrets_response, args.correlation_id, args.module_name)
-    
-    logger.info(f"Starting the process of extracting the data for correlation id {args.correlation_id}")
 
-    if args.last_process_dt:
-        processing_dt = datetime.strptime(args.last_process_dt, "%Y-%m-%d") + timedelta(days=1)
+    logger.info(f"Extracting the collection names correlation id {args.correlation_id}")
+    secrets_response = utils.retrieve_secrets(config["DEFAULT"]["aws_secret_name"])
+    collections = utils.get_collections(logger, secrets_response, args.correlation_id, args.module_name)
+
+    logger.info(f"checking for cleanup flag. It has been mark as {args.clean_up_flg}")
+
+    if args.clean_up_flg:
+        utils.clean_up_s3_prefix(logger, config['DEFAULT']['s3_published_bucket'], f"{config['DEFAULT']['domain_name']}/non-pii/")
+
+
+    logger.info(f"Calculating the start and end date of catchup mode for correlation id {args.correlation_id}")
+
+    if args.start_dt:
+        processing_dt = datetime.strptime(args.start_dt, "%Y-%m-%d")
+        end_dt = datetime.strptime(args.end_dt, "%Y-%m-%d").date()
     else:
         processing_dt = utils.get_last_process_dt(logger, args, config)
+        end_dt = date.today()
 
-    while processing_dt.date() <= date.today():
+    while processing_dt.date() <= end_dt:
 
         logger.info("The processing date is %s", processing_dt)
         
@@ -56,17 +58,8 @@ def execute(logger, spark, args, config):
                 df = spark_utils.read_csv_with_inferschema(logger, spark, sts_token, path, run_id, processing_dt_str, args, config)
             else:
                 logger.warn(f"the file {s3_prefix} does not exits in the {s3_remote_bucket} for correlation id {args.correlation_id}")
-                logger.warn("checking the environment. If it is development or QA environment then random test data will be generated. For other environment alert will be generated on SNS topic")
-
-                if config["DEFAULT"]["environment"] not in ('development', 'qa'):
-                    logger.info("Publishing the warning message to SNS Topic")
-                    response=utils.publish_sns_notification(logger, args, config)
-                    status.append(False)
-                else:
-                    logger.info("Generating the sample data for smoke testing!!")
-                    data = test_datagen.dataGenerator(logger, args.module_name, collection)
-                    df = spark.createDataFrame(data)
-                    status.append(True)
+                status.append(False)
+                continue
 
             logger.info(f"Apply Transformation to the sourced dataframe for {args.correlation_id}")
 
@@ -83,7 +76,8 @@ def execute(logger, spark, args, config):
                 
             if response:
                 logger.info(f"data loaded into in the destination_bucket for correlation_id {args.correlation_id}")
-                
+
+
             logger.info(f"creating the hive table on the destination_path for correlation_id {args.correlation_id} with run id {run_id}")
                 
             response = spark_utils.create_hive_tables_on_published(logger, 
@@ -102,13 +96,15 @@ def execute(logger, spark, args, config):
 
             utils.tag_objects(logger, destination_bucket, destination_folder, config, collection, access_pii='false' )
 
-
         logger.info(f"adding the complete/failed status to audit table for correlation_id {args.correlation_id} with run id {run_id}")
 
         if all(status):
             utils.log_end_of_batch(logger, run_id, processing_dt_str, args, config, status=config["DEFAULT"]["Completed_Status"])
+
         else:
             utils.log_end_of_batch(logger, run_id, processing_dt_str, args, config, status=config["DEFAULT"]["Failed_Status"])
+            logger.error(f"looks like 1 or more files are not present in the source bucket.Aborting the spark process")
+            raise Exception("One or more file not found in the source bucket with proccessing date as %s", processing_dt_str)
 
         logger.info(f"Process is complete for correlation_id {args.correlation_id} with run_id {run_id}")
         

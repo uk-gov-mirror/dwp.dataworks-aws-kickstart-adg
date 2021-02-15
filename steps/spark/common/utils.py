@@ -17,18 +17,14 @@ def get_parameters(logger):
         description="Receive args provided to spark submit job"
     )
 
-    parser.add_argument("--correlation_id", type=str, required=False, dest='correlation_id', default="kickstart_vacancy_analytical_dataset_generation")
-    parser.add_argument("--job_name", type=str, required=False, dest='job_name', default="kicstart")
-    parser.add_argument("--module_name", type=str, required=False, dest='module_name', default="vacancy")
-    parser.add_argument("--last_process_dt", type=str, required=False, dest='last_process_dt', default="")
+    parser.add_argument("--correlation_id", type=str, required=False, default="kickstart_vacancy_analytical_dataset_generation")
+    parser.add_argument("--job_name", type=str, required=False, default="kicstart")
+    parser.add_argument("--module_name", type=str, required=False, default="vacancy")
+    parser.add_argument("--start_dt", type=str, required=False, default="")
+    parser.add_argument("--end_dt", type=str, required=False, default="")
+    parser.add_argument("--clean_up_flg", type=bool, required=False, default=False)
 
     args, unrecognized_args = parser.parse_known_args()
-    logger.warning(
-        "Unrecognized args %s found for the correlation id %s",
-        unrecognized_args,
-        args.correlation_id
-    )
-
     return args
 
 def get_client(service_name):
@@ -161,48 +157,14 @@ def log_end_of_batch(logger, run_id, processing_dt, args, config, status):
         )
         sys.exit(-1)
 
-def publish_sns_notification(logger, args, config):
-    try:
-        message={
-            "source": [
-                "aws.emr"
-            ],
-            "detail-type": [
-                f"File not found"
-            ],
-            "detail": {
-                "state": [
-                    "CONTINUE"
-                ],
-                "name": [
-                    "kickstart-analytical-dataset-generator"
-                ],
-                "stateChangeReason": [
-                    "{\"code\":\"FILE_NOT_FOUND\", \"message\":\"File not found in remote bucket\"}"
-                ]
-            }
-        }
-        client=boto3.client("sns", region_name=config["DEFAULT"]["aws_region"])
-        response=client.publish(
-            TargetArn=config["DEFAULT"]["sns_monitoring_topic"],
-            Message=json.dumps({"default": json.dumps(message)}),
-            MessageStructure='json'
-        )
-    except Exception as ex:
-        logger.error("Error while publishing message to SNS topic for correlation id %s because of error %s",
-                     args.correlation_id,
-                     str(ex))
-        sys.exit(-1)
-
-
-def tag_objects(logger, s3_publish_bucket, prefix, config, table, access_pii='false'):
+def tag_objects(logger, s3_publish_bucket, prefix, config, table, access_pii_value='false'):
     try:
         s3_client=boto3.client('s3')
         for key in s3_client.list_objects(Bucket=s3_publish_bucket, Prefix=prefix)["Contents"]:
             s3_client.put_object_tagging(
                 Bucket=s3_publish_bucket,
                 Key=key["Key"],
-                Tagging={"TagSet": [{"Key": "access_pii", "Value": access_pii},
+                Tagging={"TagSet": [{"Key": "pii", "Value": access_pii_value},
                                     {"Key": "dataset", "Value": config["DEFAULT"]["domain_name"]},
                                     {"Key": "database", "Value": config["DEFAULT"]["published_database_name"]},
                                     {"Key": "table", "Value": table}]},
@@ -238,4 +200,16 @@ def get_last_process_dt(logger, args, config):
                      args.correlation_id,
                      str(ex)
                      )
+        sys.exit(-1)
+
+def clean_up_s3_prefix(logger, bucket_name, prefix_name):
+    try:
+        logger.info("Getting the cleanup not required prefix!!!")
+        s3 = boto3.resource('s3')
+        bucket = s3.Bucket(bucket_name)
+        deleteObj = bucket.objects.filter(Prefix=prefix_name).delete()
+        logger.info("folder deleted: %s", deleteObj)
+
+    except BaseException as ex:
+        logger.error("error while deleting the data %s", str(ex))
         sys.exit(-1)

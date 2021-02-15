@@ -118,4 +118,3 @@ def transformation(logger, spark, df, run_id, processing_dt, args, config):
         logger.error("Problem while applying transformation for correlation Id: %s because of error: %s",args.correlation_id, str(ex))
         log_end_of_batch(logger, run_id, processing_dt, args, config, status=config["DEFAULT"]["Failed_Status"])
         sys.exit(-1)
-

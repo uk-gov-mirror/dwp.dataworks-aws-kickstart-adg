@@ -14,7 +14,7 @@ resource "aws_cloudwatch_event_rule" "kickstart_adg_terminated_with_errors_rule"
       "TERMINATED_WITH_ERRORS"
     ],
     "name": [
-      "kickstart-analytical-dataset-generator"
+      "kickstart-adg"
     ]
   }
 }
@@ -62,7 +62,7 @@ resource "aws_cloudwatch_event_rule" "kickstart_adg_success" {
       "TERMINATED"
     ],
     "name": [
-      "kickstart-analytical-dataset-generator"
+      "kickstart-adg"
     ],
     "stateChangeReason": [
       "{\"code\":\"ALL_STEPS_COMPLETED\",\"message\":\"Steps completed\"}"
@@ -82,7 +82,7 @@ resource "aws_cloudwatch_metric_alarm" "kickstart_adg_success" {
   period                    = "60"
   statistic                 = "Sum"
   threshold                 = "1"
-  alarm_description         = "Monitoring adg completion"
+  alarm_description         = "Monitoring kickstart adg completion"
   insufficient_data_actions = []
   alarm_actions             = [data.terraform_remote_state.security-tools.outputs.sns_topic_london_monitoring.arn]
   dimensions = {
@@ -97,3 +97,4 @@ resource "aws_cloudwatch_metric_alarm" "kickstart_adg_success" {
     },
   )
 }
+
