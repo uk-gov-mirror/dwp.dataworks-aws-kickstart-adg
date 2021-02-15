@@ -157,14 +157,14 @@ def log_end_of_batch(logger, run_id, processing_dt, args, config, status):
         )
         sys.exit(-1)
 
-def tag_objects(logger, s3_publish_bucket, prefix, config, table, access_pii_value='false'):
+def tag_objects(logger, s3_publish_bucket, prefix, config, table, access_pii='false'):
     try:
         s3_client=boto3.client('s3')
         for key in s3_client.list_objects(Bucket=s3_publish_bucket, Prefix=prefix)["Contents"]:
             s3_client.put_object_tagging(
                 Bucket=s3_publish_bucket,
                 Key=key["Key"],
-                Tagging={"TagSet": [{"Key": "pii", "Value": access_pii_value},
+                Tagging={"TagSet": [{"Key": "pii", "Value": access_pii},
                                     {"Key": "dataset", "Value": config["DEFAULT"]["domain_name"]},
                                     {"Key": "database", "Value": config["DEFAULT"]["published_database_name"]},
                                     {"Key": "table", "Value": table}]},
