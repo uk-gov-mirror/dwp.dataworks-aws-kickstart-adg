@@ -100,7 +100,7 @@ def create_hive_tables_on_published(logger, spark, collection_name, df, path, ru
         """
         spark.sql(src_hive_drop_query)
         spark.sql(src_hive_create_query)
-        
+        spark.sql(f"MSCK REPAIR TABLE {src_hive_table}")
         return True
         
     except BaseException as ex:
