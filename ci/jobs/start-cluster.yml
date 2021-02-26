@@ -9,8 +9,8 @@ jobs:
             CORRELATION_ID: "kickstart_vacancy_analytical_dataset_generation"
             JOB_NAME: "kickstart"
             MODULE_NAME: "vacancy"
-            START_DT: "2021-02-09"
-            END_DT: "2021-02-10"
+            START_DT: "2021-02-24"
+            END_DT: "2021-02-25"
             CLEAN_UP_FLG: True
 
   - name: start-cluster-qa
@@ -25,6 +25,7 @@ jobs:
             MODULE_NAME: "vacancy"
             START_DT: "2021-01-24"
             END_DT: "2021-01-24"
+            CLEAN_UP_FLG: False
 
   - name: start-cluster-integration
     plan:
@@ -52,6 +53,7 @@ jobs:
             MODULE_NAME: "vacancy"
             START_DT: "2021-01-24"
             END_DT: "2021-01-24"
+            CLEAN_UP_FLG: False
 
   - name: start-cluster-production
     plan:
@@ -65,3 +67,4 @@ jobs:
             MODULE_NAME: "vacancy"
             START_DT: "2021-01-24"
             END_DT: "2021-01-24"
+            CLEAN_UP_FLG: True

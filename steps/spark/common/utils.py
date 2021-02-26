@@ -23,6 +23,7 @@ def get_parameters(logger):
     parser.add_argument("--start_dt", type=str, required=False, default="")
     parser.add_argument("--end_dt", type=str, required=False, default="")
     parser.add_argument("--clean_up_flg", type=bool, required=False, default=False)
+    parser.add_argument("--e2e_test_flg", type=bool, required=False, default=False)
 
     args, unrecognized_args = parser.parse_known_args()
     return args
@@ -71,7 +72,7 @@ def get_log_start_of_batch(logger, processing_dt, args, config):
         if not response['Items']:
             put_item(table, run_id, processing_dt, args, config, status=config["DEFAULT"]["In_Progress_Status"])
         else:
-            run_id=response["Items"][0][config["DEFAULT"]["audit_table_range_key"]] + 1
+            run_id=response["Items"][0]["Run_Id"] + 1
             put_item(table, run_id, processing_dt, args, config, status=config["DEFAULT"]["In_Progress_Status"])
     
     except BaseException as ex:
@@ -85,9 +86,9 @@ def put_item(table, run_id, processing_dt, args, config, status):
     table.put_item(
         Item={
             config["DEFAULT"]["audit_table_hash_key"]: args.correlation_id,
-            config["DEFAULT"]["audit_table_range_key"]: run_id,
+            config["DEFAULT"]["audit_table_range_key"]: config["DEFAULT"]["audit_table_data_product_name"],
             "Date": processing_dt,
-            "DataProduct": config["DEFAULT"]["audit_table_data_product_name"],
+            "Run_Id": run_id,
             "Status": status
         }
     )
@@ -121,12 +122,14 @@ def get_sts_token(logger, config):
         logger.error("Failed to generated the STS token because of error %s", str(ex))
         sys.exit(-1)
 
-def get_list_keys_for_prefix(sts_token, s3_bucket, s3_prefix):
+def get_list_keys_for_prefix(s3_bucket, s3_prefix,sts_token):
     keys = []
-    s3_client = boto3.client('s3',
-        aws_access_key_id=sts_token['Credentials']['AccessKeyId'],
-        aws_secret_access_key=sts_token['Credentials']['SecretAccessKey'],
-        aws_session_token=sts_token['Credentials']['SessionToken']
+    s3_client = boto3.client('s3')
+    if sts_token is not None:
+        s3_client = boto3.client('s3',
+            aws_access_key_id=sts_token['Credentials']['AccessKeyId'],
+            aws_secret_access_key=sts_token['Credentials']['SecretAccessKey'],
+            aws_session_token=sts_token['Credentials']['SessionToken']
     )
     paginator = s3_client.get_paginator("list_objects_v2")
     pages = paginator.paginate(Bucket=s3_bucket, Prefix=s3_prefix)
@@ -165,8 +168,7 @@ def tag_objects(logger, s3_publish_bucket, prefix, config, table, access_pii='fa
                 Bucket=s3_publish_bucket,
                 Key=key["Key"],
                 Tagging={"TagSet": [{"Key": "pii", "Value": access_pii},
-                                    {"Key": "dataset", "Value": config["DEFAULT"]["domain_name"]},
-                                    {"Key": "database", "Value": config["DEFAULT"]["published_database_name"]},
+                                    {"Key": "db", "Value": config["DEFAULT"]["published_database_name"]},
                                     {"Key": "table", "Value": table}]},
             )
     except BaseException as e:
@@ -200,16 +202,4 @@ def get_last_process_dt(logger, args, config):
                      args.correlation_id,
                      str(ex)
                      )
-        sys.exit(-1)
-
-def clean_up_s3_prefix(logger, bucket_name, prefix_name):
-    try:
-        logger.info("Getting the cleanup not required prefix!!!")
-        s3 = boto3.resource('s3')
-        bucket = s3.Bucket(bucket_name)
-        deleteObj = bucket.objects.filter(Prefix=prefix_name).delete()
-        logger.info("folder deleted: %s", deleteObj)
-
-    except BaseException as ex:
-        logger.error("error while deleting the data %s", str(ex))
         sys.exit(-1)

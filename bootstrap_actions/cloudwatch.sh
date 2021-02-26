@@ -8,6 +8,7 @@ cwa_log_group_name="$3"
 cwa_bootstrap_loggrp_name="$5"
 cwa_steps_loggrp_name="$6"
 cwa_yarnspark_loggrp_name="$7"
+cwa_tests_loggrp_name="$8"
 
 export AWS_DEFAULT_REGION="$${4}"
 
@@ -87,6 +88,12 @@ cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json <<CWAGEN
             "file_path": "/var/log/kickstart_adg/generate-analytical-dataset.log",
             "log_group_name": "$${cwa_steps_loggrp_name}",
             "log_stream_name": "generate-analytical-dataset.log",
+            "timezone": "UTC"
+          },
+          {
+            "file_path": "/var/log/kickstart_adg/e2e-tests.log",
+            "log_group_name": "$${cwa_tests_loggrp_name}",
+            "log_stream_name": "e2e-tests.log",
             "timezone": "UTC"
           },
           {

@@ -27,6 +27,7 @@ if __name__ == '__main__':
                          "s3_published_bucket" : "${s3_published_bucket}",
                          "sns_monitoring_topic" : "${sns_monitoring_topic}",
                          "domain_name": "${domain_name}",
+                         "e2e_test_folder": "${e2e_test_folder}",
                          "In_Progress_Status": "In-Progress",
                          "Completed_Status": "Completed",
                          "Failed_Status": "Failed"}

@@ -22,18 +22,6 @@ resource "aws_s3_bucket_object" "spark_steps_common_utils" {
   content = file("${path.module}/steps/spark/common/utils.py")
 }
 
-resource "aws_s3_bucket_object" "spark_steps_datagen_init" {
-  bucket = data.terraform_remote_state.common.outputs.config_bucket.id
-  key    = "component/kickstart-analytical-dataset-generation/steps/spark/datagen/__init__.py"
-  content = file("${path.module}/steps/spark/datagen/__init__.py")
-}
-
-resource "aws_s3_bucket_object" "spark_steps_datagen_main" {
-  bucket = data.terraform_remote_state.common.outputs.config_bucket.id
-  key    = "component/kickstart-analytical-dataset-generation/steps/spark/datagen/__main__.py"
-  content = file("${path.module}/steps/spark/datagen/__main__.py")
-}
-
 resource "aws_s3_bucket_object" "spark_steps_jobs_init" {
   bucket = data.terraform_remote_state.common.outputs.config_bucket.id
   key    = "component/kickstart-analytical-dataset-generation/steps/spark/jobs/__init__.py"
@@ -61,7 +49,7 @@ resource "aws_s3_bucket_object" "spark_steps_main" {
       aws_region_name               = var.region
       audit_table_name              = "data_pipeline_metadata"
       audit_table_hash_key          = "Correlation_Id"
-      audit_table_range_key         = "Run_Id"
+      audit_table_range_key         = "DataProduct"
       audit_table_data_product_name = "KICKSTART-ADG"
       aws_secret_name               = local.secret_name
       published_database_name       = local.published_db
@@ -70,7 +58,8 @@ resource "aws_s3_bucket_object" "spark_steps_main" {
       log_path                      = "/var/log/kickstart_adg/generate-analytical-dataset.log"
       s3_published_bucket           = data.terraform_remote_state.common.outputs.published_bucket.id
       sns_monitoring_topic          = data.terraform_remote_state.security-tools.outputs.sns_topic_london_monitoring.arn
-      domain_name                   = local.kickstart_adg_prefix[local.environment]
+      domain_name                   = local.kickstart_adg_prefix[local.environment],
+      e2e_test_folder               = "kickstart-e2e-tests"
     }
   )
 }

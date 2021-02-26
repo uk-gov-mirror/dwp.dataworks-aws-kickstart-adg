@@ -1,5 +1,6 @@
 import importlib
 import sys
+import os
 from datetime import datetime, timedelta, date
 
 def execute(logger, spark, args, config):
@@ -8,7 +9,6 @@ def execute(logger, spark, args, config):
     
     utils = importlib.import_module("common.utils")
     spark_utils = importlib.import_module("common.spark_utils")
-    test_datagen = importlib.import_module("datagen.__main__")
 
     logger.info(f"Extracting the collection names correlation id {args.correlation_id}")
     secrets_response = utils.retrieve_secrets(config["DEFAULT"]["aws_secret_name"])
@@ -17,7 +17,7 @@ def execute(logger, spark, args, config):
     logger.info(f"checking for cleanup flag. It has been mark as {args.clean_up_flg}")
 
     if args.clean_up_flg:
-        utils.clean_up_s3_prefix(logger, config['DEFAULT']['s3_published_bucket'], f"{config['DEFAULT']['domain_name']}/non-pii/")
+        spark_utils.clean_up_published_bucket(logger, spark, args, config, collections)
 
 
     logger.info(f"Calculating the start and end date of catchup mode for correlation id {args.correlation_id}")
@@ -42,37 +42,69 @@ def execute(logger, spark, args, config):
         status = []
 
         for collection in collections:
-            
-            s3_prefix = f"{processing_dt.date()}_{collection}"
-            s3_client = utils.get_client('s3')
-            s3_remote_bucket = utils.get_source_bucket_name(logger, secrets_response, args.correlation_id, args.module_name)
-            
-            logger.info(f"checking the file {s3_prefix} exits in the {s3_remote_bucket} for correlation id {args.correlation_id}")
-            
-            sts_token = utils.get_sts_token(logger, config)
-            keys = utils.get_list_keys_for_prefix(sts_token, s3_remote_bucket, s3_prefix)
-            
-            if keys:
-                logger.info(f"the file {s3_prefix} exits in the {s3_remote_bucket} for correlation id {args.correlation_id}")
-                path =  f"s3://{s3_remote_bucket}/{keys[-1]}"
-                df = spark_utils.read_csv_with_inferschema(logger, spark, sts_token, path, run_id, processing_dt_str, args, config)
+
+            if args.e2e_test_flg == True:
+                logger.info(f"The e2e test flag has been set to true for correlation id {args.correlation_id}. Process will check for the files in published bucket")
+                s3_src_bucket=config['DEFAULT']['s3_published_bucket']
+                s3_prefix=os.path.join(config['DEFAULT']['e2e_test_folder'], f"{processing_dt.date()}_{collection}")
+                sts_token=None
+                keys = utils.get_list_keys_for_prefix(s3_src_bucket, s3_prefix, sts_token)
             else:
-                logger.warn(f"the file {s3_prefix} does not exits in the {s3_remote_bucket} for correlation id {args.correlation_id}")
+                s3_prefix = f"{processing_dt.date()}_{collection}"
+                s3_src_bucket = utils.get_source_bucket_name(logger, secrets_response, args.correlation_id, args.module_name)
+                logger.info(f"checking the file {s3_prefix} exits in the {s3_src_bucket} for correlation id {args.correlation_id}")
+                sts_token = utils.get_sts_token(logger, config)
+                keys = utils.get_list_keys_for_prefix(s3_src_bucket, s3_prefix, sts_token)
+
+
+            if keys:
+                logger.info(f"the file {s3_prefix} exits in the {s3_src_bucket} for correlation id {args.correlation_id}")
+                path =  f"s3://{s3_src_bucket}/{keys[-1]}"
+                df = spark_utils.csv_extraction(logger,
+                                                spark,
+                                                path,
+                                                run_id,
+                                                processing_dt_str,
+                                                args,
+                                                config,
+                                                sts_token)
+            else:
+                logger.warn(f"the file {s3_prefix} does not exits in the {s3_src_bucket} for correlation id {args.correlation_id}")
                 status.append(False)
                 continue
 
             logger.info(f"Apply Transformation to the sourced dataframe for {args.correlation_id}")
 
-            df_with_transformation = spark_utils.transformation(logger, spark, df, run_id, processing_dt_str, args, config)
+            schema= spark_utils.get_old_schema(logger,
+                                               spark,
+                                               schema=secrets_response["initial_spark_schema"][args.module_name][collection],
+                                               database_name=config["DEFAULT"]["published_database_name"],
+                                               table_name=collection)
+
+            df_with_transformation = spark_utils.transformation(logger,
+                                                                spark,
+                                                                schema,
+                                                                df,
+                                                                run_id,
+                                                                processing_dt_str,
+                                                                args,
+                                                                config)
 
             logger.info(f"writing the file to destination bucket for correlation id {args.correlation_id}")
                 
             destination_bucket = config['DEFAULT']['s3_published_bucket']
-            domain_name=config['DEFAULT']['domain_name']
-            destination_folder = f"{domain_name}/non-pii/{collection}/"
+            domain_name=config["DEFAULT"]["published_database_name"]
+            destination_folder = f"data/{domain_name}/non-pii/{collection}/"
             destination_path   = f"s3://{destination_bucket}/{destination_folder}"
                 
-            response = spark_utils.writer_parquet(logger, spark, df_with_transformation, destination_path, run_id, processing_dt_str, args, config)
+            response = spark_utils.writer_parquet(logger,
+                                                  spark,
+                                                  df_with_transformation,
+                                                  destination_path,
+                                                  run_id,
+                                                  processing_dt_str,
+                                                  args,
+                                                  config)
                 
             if response:
                 logger.info(f"data loaded into in the destination_bucket for correlation_id {args.correlation_id}")

@@ -30,6 +30,7 @@ resource "aws_s3_bucket_object" "emr_setup_sh" {
       cwa_bootstrap_loggrp_name       = aws_cloudwatch_log_group.kickstart_adg_cw_bootstrap_loggroup.name
       cwa_steps_loggrp_name           = aws_cloudwatch_log_group.kickstart_adg_cw_steps_loggroup.name
       cwa_yarnspark_loggrp_name       = aws_cloudwatch_log_group.kickstart_adg_cw_yarnspark_loggroup.name
+      cwa_tests_loggrp_name           = aws_cloudwatch_log_group.kickstart_adg_cw_e2e_loggroup.name
   })
 }
 
@@ -76,6 +77,12 @@ resource "aws_cloudwatch_log_group" "kickstart_adg_cw_steps_loggroup" {
 
 resource "aws_cloudwatch_log_group" "kickstart_adg_cw_yarnspark_loggroup" {
   name              = local.cw_agent_yarnspark_loggrp_name
+  retention_in_days = 180
+  tags              = local.common_tags
+}
+
+resource "aws_cloudwatch_log_group" "kickstart_adg_cw_e2e_loggroup" {
+  name              = local.cw_agent_e2e_loggroup_name
   retention_in_days = 180
   tags              = local.common_tags
 }

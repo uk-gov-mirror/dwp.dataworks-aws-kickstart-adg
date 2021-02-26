@@ -36,8 +36,11 @@ data "aws_iam_policy_document" "kickstart_dataset_generator_write_data" {
     ]
 
     resources = [
+      "${data.terraform_remote_state.common.outputs.published_bucket.arn}/${local.hive_data_location}/${local.published_db}/*",
       "${data.terraform_remote_state.common.outputs.published_bucket.arn}/kickstart-analytical-dataset/*",
       "${data.terraform_remote_state.common.outputs.published_bucket.arn}/kickstart-metrics/*",
+      "${data.terraform_remote_state.common.outputs.published_bucket.arn}/kickstart-e2e-tests/*",
+
     ]
   }
 

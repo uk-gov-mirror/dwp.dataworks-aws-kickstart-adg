@@ -107,13 +107,15 @@ locals {
   cw_agent_bootstrap_loggrp_name       = "/app/kickstart_analytical_dataset_generator/bootstrap_actions"
   cw_agent_steps_loggrp_name           = "/app/kickstart_analytical_dataset_generator/step_logs"
   cw_agent_yarnspark_loggrp_name       = "/app/kickstart_analytical_dataset_generator/yarn-spark_logs"
+  cw_agent_e2e_loggroup_name           = "/app/kickstart_analytical_dataset_generator/e2e_logs"
+
   cw_agent_metrics_collection_interval = 60
 
   s3_log_prefix            = "emr/kickstart_analytical_dataset_generator"
 
   data_pipeline_metadata   = data.terraform_remote_state.internal_compute.outputs.data_pipeline_metadata_dynamo.name
 
-  published_db = "kickstart_analytical_datasets"
+  published_db = "uc_kickstart"
 
   kickstart_adg_prefix = {
     development = "kickstart-analytical-dataset"
@@ -147,5 +149,7 @@ locals {
     preprod     = "test"
     production  = "prod"
   }
+
+  hive_data_location = "data"
 
 }
