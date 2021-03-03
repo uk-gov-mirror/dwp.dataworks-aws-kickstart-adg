@@ -89,25 +89,25 @@ def csv_extraction(logger, spark, path, run_id, processing_dt, args, config, sts
         sys.exit(-1)
 
 def get_formatted_schema(df):
-    return [(field.name.lower(), field.dataType) for field in df.schema.fields]
+    return {field.name.lower(): field.dataType for field in df.schema.fields}
 
-def get_update_dataframe(logger, new_schema_df, diff_list):
+def get_update_dataframe(logger, new_schema_df, old_schema, new_schema):
     try:
-        for column in diff_list:
-            if column[0] not in new_schema_df.columns:
-                logger.warn(f"{column[0]} has been removed in new schema, adding it with default value to maintain backward compatibility")
-                new_schema_df = new_schema_df.withColumn(column[0], F.lit(None).cast(column[1]))
-            else:
-                logger.warn(f"{column[0]} datatype has changed to  {column[1]}. resetting to the old datatype to maintain backward compatibility")
-                new_schema_df = new_schema_df.withColumn(f"{column[0]}_1", F.col(column[0]).cast(column[1])) \
-                                             .withColumn("error_desc_1", F.when(F.col(f"{column[0]}_1").isNull(),
-                                                                                F.concat(F.lit(f"Type Conversion for column {column[0]}. The source value is: "),
-                                                                                F.col(f"{column[0]}"))) \
+        for column, datatype in old_schema.items():
+            if column not in new_schema:
+                logger.warn(f"{column} has been removed in new schema, adding it with default value to maintain backward compatibility")
+                new_schema_df = new_schema_df.withColumn(column, F.lit(None).cast(old_schema[column]))
+            elif new_schema[column] != old_schema[column]:
+                logger.warn(f"{column} datatype has changed to  {new_schema[column]} from {old_schema[column]}. resetting to the old datatype {old_schema[column]} to maintain backward compatibility")
+                new_schema_df = new_schema_df.withColumn(f"{column}_1", F.col(column).cast(old_schema[column])) \
+                                             .withColumn("error_desc_1", F.when(F.col(f"{column}_1").isNull(),
+                                                                                F.concat(F.lit(f"Type Conversion for column {column}. The source value is: "),
+                                                                                F.col(f"{column}"))) \
                                                                         .otherwise(None)) \
                                              .withColumn("error_desc", F.when(F.col("error_desc").isNull(), F.array(F.col("error_desc_1"))) \
                                                                         .otherwise(F.concat(F.col("error_desc"), F.array(F.col("error_desc_1"))))) \
-                                            .drop(column[0], "error_desc_1") \
-                                            .withColumnRenamed(f"{column[0]}_1", column[0])
+                                            .drop(column, "error_desc_1") \
+                                            .withColumnRenamed(f"{column}_1", column)
 
     except BaseException as e:
         logger.error("error occurred while updating the dataframe because of error: %s", str(e))
@@ -118,9 +118,8 @@ def get_update_dataframe(logger, new_schema_df, diff_list):
 def get_evolved_schema(logger, old_schema_df, new_schema_df):
     try:
         old_schema, new_schema = get_formatted_schema(old_schema_df), get_formatted_schema(new_schema_df)
-        diff_list = list(set(old_schema) - set(new_schema))
-        if diff_list:
-            update_df = get_update_dataframe(logger, new_schema_df, diff_list)
+        if old_schema != new_schema:
+            update_df = get_update_dataframe(logger, new_schema_df, old_schema, new_schema)
             return update_df
         logger.info("No change in schema. Skipping the schema evolution logic")
         return new_schema_df
@@ -135,7 +134,9 @@ def transformation(logger, spark, schema, source_df, run_id, processing_dt, args
         new_df = source_df.select([F.col(col).alias(re.sub("[^0-9a-zA-Z$]+", " ", col).strip().replace(" ", "_").lower()) for col in source_df.columns])
         new_df = new_df.withColumn("date_uploaded", F.lit(processing_dt)) \
                        .withColumn("error_desc", F.lit(None).cast(ArrayType(StringType())))
+
         old_df = spark.createDataFrame([], schema)
+
         evolved_df = get_evolved_schema(logger, old_df, new_df)
 
         return evolved_df
