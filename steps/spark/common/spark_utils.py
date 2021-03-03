@@ -216,7 +216,7 @@ def clean_up_published_bucket(logger, spark, args, config, collections):
         s3 = boto3.resource('s3')
         bucket = s3.Bucket(config['DEFAULT']['s3_published_bucket'])
         for collection in collections:
-            prefix_name=f"{config['DEFAULT']['domain_name']}/non-pii/{collection}/"
+            prefix_name=f'data/{config["DEFAULT"]["published_database_name"]}/non-pii/{collection}/'
             deleteObj = bucket.objects.filter(Prefix=prefix_name).delete()
             src_hive_table=config["DEFAULT"]["published_database_name"]+"."+collection
             catalog=Catalog(spark)
