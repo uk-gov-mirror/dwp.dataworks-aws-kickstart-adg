@@ -16,7 +16,7 @@ def execute(logger, spark, args, config):
 
     logger.info(f"checking for cleanup flag. It has been mark as {args.clean_up_flg}")
 
-    if args.clean_up_flg:
+    if args.clean_up_flg.lower() == "true":
         spark_utils.clean_up_published_bucket(logger, spark, args, config, collections)
 
 
@@ -43,7 +43,7 @@ def execute(logger, spark, args, config):
 
         for collection in collections:
 
-            if args.e2e_test_flg == True:
+            if args.e2e_test_flg.lower() == "true":
                 logger.info(f"The e2e test flag has been set to true for correlation id {args.correlation_id}. Process will check for the files in published bucket")
                 s3_src_bucket=config['DEFAULT']['s3_published_bucket']
                 s3_prefix=os.path.join(config['DEFAULT']['e2e_test_folder'], f"{processing_dt.date()}_{collection}")

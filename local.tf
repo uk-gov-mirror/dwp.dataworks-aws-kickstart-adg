@@ -43,7 +43,7 @@ locals {
     qa          = "0 5 * * ? 2029"
     integration = "0 19 * * ? *"
     preprod     = "0 5 * * ? 2029"
-    production  = "0 5 * * ? 2029"
+    production  = "0 5 * * ? *"
   }
 
   kickstart_adg_log_level = {

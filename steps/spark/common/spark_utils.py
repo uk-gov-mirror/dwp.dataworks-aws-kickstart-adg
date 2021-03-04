@@ -221,8 +221,9 @@ def clean_up_published_bucket(logger, spark, args, config, collections):
             deleteObj = bucket.objects.filter(Prefix=prefix_name).delete()
             src_hive_table=config["DEFAULT"]["published_database_name"]+"."+collection
             catalog=Catalog(spark)
-            if check_table_exists(catalog, table_name=collection, database_name=config["DEFAULT"]["published_database_name"]):
-                spark.sql(f"DROP TABLE {src_hive_table}")
+            if check_database_exists(catalog, database_name=config["DEFAULT"]["published_database_name"]):
+                if check_table_exists(catalog, table_name=collection, database_name=config["DEFAULT"]["published_database_name"]):
+                    spark.sql(f"DROP TABLE {src_hive_table}")
             logger.info("folder deleted: %s", deleteObj)
 
     except BaseException as ex:

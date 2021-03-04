@@ -22,8 +22,8 @@ def get_parameters(logger):
     parser.add_argument("--module_name", type=str, required=False, default="vacancy")
     parser.add_argument("--start_dt", type=str, required=False, default="")
     parser.add_argument("--end_dt", type=str, required=False, default="")
-    parser.add_argument("--clean_up_flg", type=bool, required=False, default=False)
-    parser.add_argument("--e2e_test_flg", type=bool, required=False, default=False)
+    parser.add_argument("--clean_up_flg", type=str, required=False, default="false")
+    parser.add_argument("--e2e_test_flg", type=str, required=False, default="false")
 
     args, unrecognized_args = parser.parse_known_args()
     return args
