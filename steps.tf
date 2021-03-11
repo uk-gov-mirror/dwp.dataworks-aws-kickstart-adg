@@ -40,6 +40,30 @@ resource "aws_s3_bucket_object" "spark_steps_jobs_vacancy_main" {
   content = file("${path.module}/steps/spark/jobs/vacancy/__main__.py")
 }
 
+resource "aws_s3_bucket_object" "spark_steps_jobs_application_init" {
+  bucket = data.terraform_remote_state.common.outputs.config_bucket.id
+  key    = "component/kickstart-analytical-dataset-generation/steps/spark/jobs/application/__init__.py"
+  content = file("${path.module}/steps/spark/jobs/vacancy/__init__.py")
+}
+
+resource "aws_s3_bucket_object" "spark_steps_jobs_application_main" {
+  bucket = data.terraform_remote_state.common.outputs.config_bucket.id
+  key    = "component/kickstart-analytical-dataset-generation/steps/spark/jobs/application/__main__.py"
+  content = file("${path.module}/steps/spark/jobs/vacancy/__main__.py")
+}
+
+resource "aws_s3_bucket_object" "spark_steps_jobs_payment_init" {
+  bucket = data.terraform_remote_state.common.outputs.config_bucket.id
+  key    = "component/kickstart-analytical-dataset-generation/steps/spark/jobs/payment/__init__.py"
+  content = file("${path.module}/steps/spark/jobs/vacancy/__init__.py")
+}
+
+resource "aws_s3_bucket_object" "spark_steps_jobs_payment_main" {
+  bucket = data.terraform_remote_state.common.outputs.config_bucket.id
+  key    = "component/kickstart-analytical-dataset-generation/steps/spark/jobs/payment/__main__.py"
+  content = file("${path.module}/steps/spark/jobs/vacancy/__main__.py")
+}
+
 resource "aws_s3_bucket_object" "spark_steps_main" {
   bucket = data.terraform_remote_state.common.outputs.config_bucket.id
   key    = "component/kickstart-analytical-dataset-generation/steps/spark/main.py"
@@ -57,9 +81,9 @@ resource "aws_s3_bucket_object" "spark_steps_main" {
       assume_role_outside_acct_arn  = format("arn:aws:iam::%s:role/%s", lookup(local.source_acc_nos, lookup(local.environment_mapping, local.environment)), var.source_assume_role_name)
       log_path                      = "/var/log/kickstart_adg/generate-analytical-dataset.log"
       s3_published_bucket           = data.terraform_remote_state.common.outputs.published_bucket.id
-      sns_monitoring_topic          = data.terraform_remote_state.security-tools.outputs.sns_topic_london_monitoring.arn
       domain_name                   = local.kickstart_adg_prefix[local.environment],
       e2e_test_folder               = "kickstart-e2e-tests"
+      url                           = format("%s/datakey/actions/decrypt", data.terraform_remote_state.crypto.outputs.dks_endpoint[local.environment])
     }
   )
 }

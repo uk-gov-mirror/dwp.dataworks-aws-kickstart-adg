@@ -1,4 +1,5 @@
 import json
+import base64
 import argparse
 import boto3
 import sys
@@ -7,50 +8,142 @@ import ast
 from datetime import datetime, timedelta, date
 from boto3.dynamodb.conditions import Key
 
-def get_config(path):
-    config = configparser.ConfigParser()
-    config.read(path)
-    return config
+import requests
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
+
+from Crypto.Cipher import AES
+from Crypto.Util import Counter
+
+
+def get_config(logger, path):
+    try:
+        config = configparser.ConfigParser()
+        config.read(path)
+
+        return config
+
+    except BaseException as ex:
+        logger.error("Error while exporting the configs because of error %s", str(ex))
+        sys.exit(1)
 
 def get_parameters(logger):
-    parser = argparse.ArgumentParser(
-        description="Receive args provided to spark submit job"
-    )
+    try:
 
-    parser.add_argument("--correlation_id", type=str, required=False, default="kickstart_vacancy_analytical_dataset_generation")
-    parser.add_argument("--job_name", type=str, required=False, default="kicstart")
-    parser.add_argument("--module_name", type=str, required=False, default="vacancy")
-    parser.add_argument("--start_dt", type=str, required=False, default="")
-    parser.add_argument("--end_dt", type=str, required=False, default="")
-    parser.add_argument("--clean_up_flg", type=str, required=False, default="false")
-    parser.add_argument("--e2e_test_flg", type=str, required=False, default="false")
+        parser = argparse.ArgumentParser(
+            description="Receive args provided to spark submit job"
+        )
 
-    args, unrecognized_args = parser.parse_known_args()
+        parser.add_argument("--correlation_id", type=str, required=False, default="")
+        parser.add_argument("--job_name", type=str, required=False, default="kicstart")
+        parser.add_argument("--module_name", type=str, required=False, default="")
+        parser.add_argument("--start_dt", type=str, required=False, default="")
+        parser.add_argument("--end_dt", type=str, required=False, default="")
+        parser.add_argument("--clean_up_flg", type=str, required=False, default="false")
+        parser.add_argument("--e2e_test_flg", type=str, required=False, default="false")
+
+        args, unrecognized_args = parser.parse_known_args()
+        if unrecognized_args:
+            logger.warn("Found unknown parameters during runtime %s", str(unrecognized_args))
+
+    except BaseException as ex:
+        logger.error("Failed to get runtime parameters due to error %s", str(ex))
+        sys.exit(1)
+
     return args
+
+def update_runtime_args_to_config(logger, args, config):
+    try:
+        if args.correlation_id == "":
+            raise Exception("Correlation not passed during the run time this is required as part of this process")
+        else:
+            config["correlation_id"] = args.correlation_id.lower()
+
+        if args.job_name == "":
+            logger.warn("Job_Name Passed as blank, setting this variable to kickstart")
+            config["job_name"] = args.job_name.lower()
+
+        if args.module_name == "":
+            raise Exception("No module name passed please set the value of module as vacancy, application or payment and re-submit the jobs")
+        else:
+            config["module_name"] = args.module_name.lower()
+
+        if args.start_dt == "":
+            config["start_date"] = get_last_process_dt(logger, **config)
+        else:
+            config["start_date"] = datetime.strftime(args.start_dt, "%Y-%m-%d")
+
+        if args.end_dt == "":
+            config["end_date"] = datetime.strftime(datetime.now(), "%Y-%m-%d")
+        else:
+            config["end_date"] = datetime.strftime(args.end_dt, "%Y-%m-%d")
+
+        if args.clean_up_flg == "":
+            logger.warn("clean_up_flg Passed as blank, setting this variable to False as default")
+            config["clean_up_flag"] = "false"
+        else:
+            config["clean_up_flag"] = args.clean_up_flg.lower()
+
+        if args.e2e_test_flg == "":
+            logger.warn("clean_up_flg Passed as blank, setting this variable to False as default")
+            config["e2e_test_flag"] = "false"
+        else:
+            config["e2e_test_flag"] = args.clean_up_flg.lower()
+
+    except BaseException as ex:
+        logger.error("Error Generated while updating runtime value to config file because of error %s", str(ex))
+        sys.exit(1)
+
+    return config
+
 
 def get_client(service_name):
     client = boto3.client(service_name)
     return client
 
+def get_s3_client(logger, sts_token=None):
+    try:
+
+        s3_client =  boto3.client('s3')
+        if sts_token is not None:
+            s3_client = boto3.client('s3',
+                                 aws_access_key_id=sts_token['Credentials']['AccessKeyId'],
+                                 aws_secret_access_key=sts_token['Credentials']['SecretAccessKey'],
+                                 aws_session_token=sts_token['Credentials']['SessionToken']
+                                 )
+    except BaseException as ex:
+        logger.error("S3 client creation failed due to error : %s ", str(ex))
+        sys.exit(1)
+
+    return s3_client
+
+
 def get_resource(service_name, region):
     return boto3.resource(service_name, region_name=region)
 
-def retrieve_secrets(secret_name):
-    session = boto3.session.Session()
-    client = session.client(service_name="secretsmanager")
-    response = client.get_secret_value(SecretId=secret_name)['SecretString']
-    response_dict = ast.literal_eval(response)
+def retrieve_secrets(logger, aws_secret_name, **kwargs):
+    try:
+        session = boto3.session.Session()
+        client = session.client(service_name="secretsmanager")
+        response = client.get_secret_value(SecretId=aws_secret_name)['SecretString']
+        response_dict = ast.literal_eval(response)
+
+    except BaseExeption as ex:
+        logger.error("Error while getting secrets from secret manager because of error %s", str(ex))
+        sys.exit(1)
+
     return response_dict
 
-def get_collections(logger, secrets_response, correlation_id, module_name):
+def get_collections(logger, secrets_response, module_name, correlation_id, **kwargs):
         try:
             collections = secrets_response["collections"][module_name]
-            return collections
         except:
             logger.error(f"Problem with collections list for correlation Id: {correlation_id}")
-            sys.exit(-1)
+            sys.exit(1)
 
-def get_source_bucket_name(logger, secrets_response, correlation_id, module_name):
+        return collections
+
+def get_source_bucket_name(logger, secrets_response, correlation_id, module_name, **kwargs):
     try:
         bucket_name = secrets_response["src_bucket_names"][module_name]
         return bucket_name
@@ -58,50 +151,56 @@ def get_source_bucket_name(logger, secrets_response, correlation_id, module_name
         logger.error(f"Problem in getting bucket name for correlation Id: {correlation_id} because of error {str(ex)}")
         sys.exit(-1)
 
-def get_log_start_of_batch(logger, processing_dt, args, config):
-
-    logger.info("Updating Audit table with start status for correlation id %s", args.correlation_id)
-    dynamodb=get_resource("dynamodb", region=config["DEFAULT"]["aws_region"])
-    table=dynamodb.Table(config["DEFAULT"]["audit_table_name"])
-    run_id = 1
+def get_log_start_of_batch(
+        logger, aws_region, audit_table_name, audit_table_hash_key,
+        audit_table_range_key, audit_table_data_product_name,
+        hash_id, processing_dt, status, **kwargs
+    ):
     try:
+        dynamodb=get_resource("dynamodb", region=aws_region)
+        table=dynamodb.Table(audit_table_name)
+        run_id = 1
         response = table.query(
-            KeyConditionExpression=Key(config["DEFAULT"]["audit_table_hash_key"]).eq(args.correlation_id),
+            KeyConditionExpression=Key(audit_table_hash_key).eq(hash_id),
             ScanIndexForward=False            
         )
-        if not response['Items']:
-            put_item(table, run_id, processing_dt, args, config, status=config["DEFAULT"]["In_Progress_Status"])
-        else:
+        if response['Items']:
             run_id=response["Items"][0]["Run_Id"] + 1
-            put_item(table, run_id, processing_dt, args, config, status=config["DEFAULT"]["In_Progress_Status"])
+
+        put_item(
+                table, audit_table_hash_key, audit_table_range_key,
+                audit_table_data_product_name, hash_id, run_id, processing_dt, status)
     
     except BaseException as ex:
         logger.error("Problem updating audit table status for correlation id : %s %s",
-        args.correlation_id,str(ex))
-        sys.exit(-1)
+                     hash_id,str(ex))
+        sys.exit(1)
     
     return run_id
 
-def put_item(table, run_id, processing_dt, args, config, status):
+def put_item(
+        table, audit_table_hash_key, audit_table_range_key,
+        audit_table_data_product_name, hash_id, run_id, processing_dt, status):
     table.put_item(
         Item={
-            config["DEFAULT"]["audit_table_hash_key"]: args.correlation_id,
-            config["DEFAULT"]["audit_table_range_key"]: config["DEFAULT"]["audit_table_data_product_name"],
-            "Date": processing_dt,
+            audit_table_hash_key: hash_id,
+            audit_table_range_key: audit_table_data_product_name,
+            "Date": datetime.strftime(processing_dt, "%Y-%m-%d"),
             "Run_Id": run_id,
             "Status": status
         }
     )
     
 
-def get_sts_token(logger, config):
+def get_sts_token(
+        logger, aws_region, assume_role_within_acct_arn, assume_role_outside_acct_arn, **kwargs):
     try:
-        region=config["DEFAULT"]["aws_region"]
+        region=aws_region
         sts_within_acct = boto3.client('sts',
                                        region_name=region,
                                        endpoint_url=f'https://sts.{region}.amazonaws.com')
         sts_token_within_acct = sts_within_acct.assume_role(
-            RoleArn = config["DEFAULT"]["assume_role_within_acct_arn"],
+            RoleArn = assume_role_within_acct_arn,
             RoleSessionName = "Assume_Role_within_Account",
         )
         sts_outside_acct = boto3.client('sts',
@@ -112,53 +211,50 @@ def get_sts_token(logger, config):
             endpoint_url=f'https://sts.{region}.amazonaws.com'
         )
         sts_token_outside_acct = sts_outside_acct.assume_role(
-            RoleArn=config['DEFAULT']['assume_role_outside_acct_arn'],
+            RoleArn=assume_role_outside_acct_arn,
             RoleSessionName = "Assume_Role_outside_Account"
         )
-    
-        return sts_token_outside_acct
+
 
     except Exception as ex:
         logger.error("Failed to generated the STS token because of error %s", str(ex))
-        sys.exit(-1)
+        sys.exit(1)
 
-def get_list_keys_for_prefix(s3_bucket, s3_prefix,sts_token):
-    keys = []
-    s3_client = boto3.client('s3')
-    if sts_token is not None:
-        s3_client = boto3.client('s3',
-            aws_access_key_id=sts_token['Credentials']['AccessKeyId'],
-            aws_secret_access_key=sts_token['Credentials']['SecretAccessKey'],
-            aws_session_token=sts_token['Credentials']['SessionToken']
-    )
-    paginator = s3_client.get_paginator("list_objects_v2")
-    pages = paginator.paginate(Bucket=s3_bucket, Prefix=s3_prefix)
-    for page in pages:
-        if "Contents" in page:
-            for obj in page["Contents"]:
-                keys.append(obj["Key"])
-    if s3_prefix in keys:
-        keys.remove(s3_prefix)
-    
+    return sts_token_outside_acct
+
+def get_list_keys_for_prefix(logger, s3_client, s3_prefix, s3_bucket):
+    try:
+        keys = []
+        paginator = s3_client.get_paginator("list_objects_v2")
+        pages = paginator.paginate(Bucket=s3_bucket, Prefix=s3_prefix)
+        for page in pages:
+            if "Contents" in page:
+                for obj in page["Contents"]:
+                    keys.append(obj["Key"])
+        if s3_prefix in keys:
+            keys.remove(s3_prefix)
+
+    except Exception as ex:
+        logger.error(f"Problem while extracting the list of keys because of error {str(ex)}")
+        sys.exit(1)
+
     return keys
 
-def log_end_of_batch(logger, run_id, processing_dt, args, config, status):
-    
-    logger.info("Updating audit table with end status for correlation_id %s", args.correlation_id)
-    
+def log_end_of_batch(
+        logger, aws_region, audit_table_name, audit_table_hash_key,
+        audit_table_range_key, audit_table_data_product_name,
+        hash_id, processing_dt, run_id, status, **kwargs):
     try:
-        dynamodb = get_resource("dynamodb", region=config["DEFAULT"]["aws_region"])
-        data_pipeline_metadata = config['DEFAULT']['audit_table_name']
-        table = dynamodb.Table(data_pipeline_metadata)
-        put_item(table, run_id, processing_dt, args, config, status)
+        dynamodb = get_resource("dynamodb", region=aws_region)
+        table = dynamodb.Table(audit_table_name)
+        put_item(
+            table, audit_table_hash_key, audit_table_range_key,
+            audit_table_data_product_name, hash_id, run_id, processing_dt, status)
     
     except BaseException as ex:
-        logger.error("Problem updating audit table end status for correlation id: %s and run id: %s %s",
-        args.correlation_id,
-        run_id,
-        str(ex)
-        )
-        sys.exit(-1)
+        logger.error("Problem updating audit table end status for correlation id: %s because of error %s",
+                     hash_id,str(ex))
+        sys.exit(1)
 
 def tag_objects(logger, s3_publish_bucket, prefix, config, table, access_pii='false'):
     try:
@@ -175,14 +271,15 @@ def tag_objects(logger, s3_publish_bucket, prefix, config, table, access_pii='fa
         logger.error("Issue while tagging the s3 objects because of error %s", str(e))
         sys.exit(-1)
 
-def get_last_process_dt(logger, args, config):
-    logger.info("Getting the last process dt from audit table for correlation id %s", args.correlation_id)
-    dynamodb=get_resource("dynamodb", region=config["DEFAULT"]["aws_region"])
-    table=dynamodb.Table(config["DEFAULT"]["audit_table_name"])
+def get_last_process_dt(
+        logger, aws_region, audit_table_name, audit_table_hash_key, correlation_id, **kwargs
+    ):
+    dynamodb=get_resource("dynamodb", region=aws_region)
+    table=dynamodb.Table(audit_table_name)
     process_dt=""
     try:
         response = table.query(
-            KeyConditionExpression=Key(config["DEFAULT"]["audit_table_hash_key"]).eq(args.correlation_id),
+            KeyConditionExpression=Key(audit_table_hash_key).eq(correlation_id),
             ScanIndexForward=False
         )
 
@@ -193,13 +290,114 @@ def get_last_process_dt(logger, args, config):
         else:
             process_dt = datetime.strptime(response["Items"][0]["Date"], "%Y-%m-%d")
 
-        logger.info("Process Date is %s", process_dt)
-
+        logger.info("Last Process Date is %s", process_dt)
         return process_dt
 
     except BaseException as ex:
-        logger.error("Problem updating audit table end status for correlation id: %s: %s",
-                     args.correlation_id,
+        logger.error("Problem in getting last process date for correlation id: %s: %s",
+                     correlation_id,
                      str(ex)
                      )
         sys.exit(-1)
+
+def get_bodyfor_key(logger, key, s3_client, bucket):
+    try:
+        s3_object = s3_client.get_object(Bucket=bucket, Key=key)
+
+    except BaseException as ex:
+        logger.error("Failed to read the file because of error: %s ", str(ex))
+        sys.exit(1)
+
+    return s3_object["Body"].read()
+
+def get_metadatafor_key(logger, key, s3_client, bucket):
+    try:
+        s3_object = s3_client.get_object(Bucket=bucket, Key=key)
+        iv = s3_object["Metadata"]["iv"]
+        ciphertext = s3_object["Metadata"]["ciphertext"]
+        datakeyencryptionkeyid = s3_object["Metadata"]["datakeyencryptionkeyid"]
+        metadata = {
+            "iv": iv,
+            "ciphertext": ciphertext,
+            "datakeyencryptionkeyid": datakeyencryptionkeyid,
+        }
+    except BaseException as ex:
+        logger.error("Failed to extract metadata because of error: %s ", str(ex))
+        sys.exit(1)
+
+    return metadata
+
+def get_plaintext_key_calling_dks(
+        logger, encryptedkey, keyencryptionkeyid, config
+):
+    keys_map={}
+    key = call_dks(logger, encryptedkey, keyencryptionkeyid, **config)
+    keys_map[encryptedkey] = key
+    return key
+
+def call_dks(logger, cek, kek, url, correlation_id, **kwargs):
+    try:
+        url = url
+        params = {"keyId": kek, "correlationId": correlation_id}
+        result = retry_requests().post(
+            url,
+            params=params,
+            data=cek,
+            cert=(
+                "/etc/pki/tls/certs/private_key.crt",
+                "/etc/pki/tls/private/private_key.key",
+            ),
+            verify="/etc/pki/ca-trust/source/anchors/analytical_ca.pem",
+        )
+        content = result.json()
+
+    except BaseException as ex:
+        logger.error(
+            "Problem calling DKS because of error: %s ", str(ex)
+        )
+        sys.exit(1)
+
+    return content["plaintextDataKey"]
+
+def retry_requests(retries=10, backoff=1):
+    retry_strategy = Retry(
+        total=retries,
+        backoff_factor=backoff,
+        status_forcelist=[429, 500, 502, 503, 504],
+        method_whitelist=frozenset(['POST'])
+    )
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+    requests_session = requests.Session()
+    requests_session.mount("https://", adapter)
+    requests_session.mount("http://", adapter)
+    return requests_session
+
+def decrypt(logger, plain_text_key, iv_key, data):
+    try:
+        iv_int = int(base64.b64decode(iv_key).hex(), 16)
+        ctr = Counter.new(AES.block_size * 8, initial_value=iv_int)
+        aes = AES.new(base64.b64decode(plain_text_key), AES.MODE_CTR, counter=ctr)
+        decrypted = aes.decrypt(data)
+    except BaseException as ex:
+        logger.error(
+            "Problem decrypting data because of error: %s",str(ex),
+        )
+        sys.exit(1)
+
+    return decrypted.decode("utf-8")
+
+def get_pii_non_pii_fields(logger, data):
+    try:
+        pii_fields, non_pii_fields = [],[]
+        for field in data["fields"]:
+            if str(field["pii"]).lower() == "true":
+                pii_fields.append(field["fieldName"])
+            elif str(field["pii"]).lower() == "false":
+                non_pii_fields.append(field["fieldName"])
+
+    except BaseException as ex:
+        logger.error("Failed to generated pii and non pii fields because of error: %s ", str(ex))
+        sys.exit(1)
+
+    return pii_fields, non_pii_fields
+

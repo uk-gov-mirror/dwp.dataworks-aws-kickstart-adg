@@ -45,6 +45,15 @@ resources:
     check_every: 5m
     webhook_token: ((dataworks.concourse_github_webhook_token))
 
+  - name: dataworks-behavioural-framework-test-data
+    type: git
+    source:
+      branch: Add_Kickstart_Test_Data_Generation_Feature
+      uri: https://github.com/dwp/dataworks-behavioural-framework.git
+      access_token: ((dataworks-secrets.concourse_github_pat))
+    check_every: 5m
+    webhook_token: ((dataworks.concourse_github_webhook_token))
+
   - name: meta-development
     type: meta
 

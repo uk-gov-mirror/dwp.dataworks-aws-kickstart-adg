@@ -7,15 +7,20 @@ from pyspark.sql import functions as F
 from pyspark.sql.types import *
 from common.utils import log_end_of_batch
 
-def get_spark_session(job_name, module_name):
-    spark = (
-        SparkSession.builder.master("yarn")
-            .appName(f"{job_name}-{module_name}")
-            .enableHiveSupport()
-            .getOrCreate()
-    )
-    spark.conf.set("spark.scheduler.mode", "FAIR")
-    spark.conf.set("spark.sql.sources.partitionOverwriteMode", "dynamic")
+def get_spark_session(logger, job_name, module_name, **kwargs):
+    try:
+        spark = (
+            SparkSession.builder.master("yarn")
+                .appName(f"{job_name}-{module_name}")
+                .enableHiveSupport()
+                .getOrCreate()
+        )
+        spark.conf.set("spark.scheduler.mode", "FAIR")
+        spark.conf.set("spark.sql.sources.partitionOverwriteMode", "dynamic")
+    except BaseException as ex:
+        logger.error("Not able to generate the spark session because of error : %s ", str(ex))
+        sys.exit(1)
+
     return spark
 
 def check_database_exists(catalog, database_name):
@@ -62,7 +67,7 @@ def get_old_schema(logger, spark, schema, database_name, table_name):
         logger.error("Error while extracting old schema due %s", str(e))
         sys.exit(-1)
 
-def csv_extraction(logger, spark, path, run_id, processing_dt, args, config, sts_token):
+def source_extraction(logger, spark, path, sts_token, source_type):
     try:
         if sts_token is not None:
             spark.sparkContext._jsc.hadoopConfiguration().set("fs.s3.awsCredentialsProvider", "org.apache.hadoop.fs.s3.TemporaryAWSCredentialsProvider")
@@ -70,23 +75,27 @@ def csv_extraction(logger, spark, path, run_id, processing_dt, args, config, sts
             spark.sparkContext._jsc.hadoopConfiguration().set("fs.s3.awsSecretAccessKey", sts_token["Credentials"]["SecretAccessKey"])
             spark.sparkContext._jsc.hadoopConfiguration().set("fs.s3.awsSessionToken", sts_token["Credentials"]["SessionToken"])
 
-        df = spark.read.format("csv")\
-                  .option("header", True)\
-                  .option("inferSchema", True)\
-                  .option("multiline", True) \
-                  .option("timestampFormat", "yyyy-MM-dd HH:mm:ss") \
-                  .load(path)
+        if source_type.lower() == "csv":
+            df = spark.read\
+                      .option("header", True)\
+                      .option("inferSchema", True)\
+                      .option("multiline", True) \
+                      .option("timestampFormat", "yyyy-MM-dd HH:mm:ss") \
+                      .format("csv") \
+                      .load(path)
 
-        return df
-    
+        if source_type.lower() == "json":
+            df = spark.read\
+                      .option("multiline", True)\
+                      .option("timestampFormat", "yyyy-MM-dd HH:mm:ss")\
+                      .json(path)
+
     except BaseException as ex:
         logger.error(
-            "Problem while reading file for Correlation Id: %s because of error %s",
-            args.correlation_id,
-            str(ex)
+            "Problem while reading file because of error %s", str(ex)
         )
-        log_end_of_batch(logger, run_id, processing_dt, args, config, status=config["DEFAULT"]["Failed_Status"])
-        sys.exit(-1)
+
+    return df
 
 def get_formatted_schema(df):
     return {field.name.lower(): field.dataType for field in df.schema.fields}
@@ -128,9 +137,8 @@ def get_evolved_schema(logger, old_schema_df, new_schema_df):
         sys.exit(-1)
 
 
-def transformation(logger, spark, schema, source_df, run_id, processing_dt, args, config):
+def transformation(logger, spark, schema, source_df, run_id, processing_dt, config):
     try:
-
         new_df = source_df.select([F.col(col).alias(re.sub("[^0-9a-zA-Z$]+", " ", col).strip().replace(" ", "_").lower()) for col in source_df.columns])
         new_df = new_df.withColumn("date_uploaded", F.lit(processing_dt)) \
                        .withColumn("error_desc", F.lit(None).cast(ArrayType(StringType())))
@@ -143,10 +151,12 @@ def transformation(logger, spark, schema, source_df, run_id, processing_dt, args
 
     except BaseException as ex:
         logger.error("Problem while applying transformation because of error: %s", str(ex))
-        log_end_of_batch(logger, run_id, processing_dt, args, config, status=config["DEFAULT"]["Failed_Status"])
+        log_end_of_batch(
+            logger, hash_id=config["correlation_id"],
+            processing_dt=processing_dt, run_id=run_id, status=config["Failed_Status"], **config)
         sys.exit(-1)
 
-def writer_parquet(logger, spark, df, path, run_id, processing_dt, args, config):
+def writer_parquet(logger, spark, df, path, run_id, processing_dt, config):
     try:
 
         spark.sparkContext._jsc.hadoopConfiguration().unset("fs.s3.awsCredentialsProvider")
@@ -158,41 +168,38 @@ def writer_parquet(logger, spark, df, path, run_id, processing_dt, args, config)
           .mode('Overwrite')\
           .partitionBy("date_uploaded")\
           .parquet(path)
-        return True
 
     except BaseException as e:
-        logger.error("Problem in writing the files for correlation_id %s for run id %s due to error %s", 
-        args.correlation_id,
-        run_id,
-        str(e))
-        log_end_of_batch(logger, run_id, processing_dt, args, config, status=config["DEFAULT"]["Failed_Status"])
+        logger.error("Problem in writing the files for correlation_id %s for run id %s due to error %s",
+        config["correlation_id"],run_id,str(e))
+        log_end_of_batch(
+            logger, hash_id=config["correlation_id"],
+            processing_dt=processing_dt, run_id=run_id, status=config["Failed_Status"], **config)
         sys.exit(-1)
 
 
-def get_hive_schema(logger, df, run_id, processing_dt, args, config):
+def get_hive_schema(logger, df):
     try:
         schema = ',\n'.join([f"{item[0]} {item[1]}" for item in df.dtypes if "date_uploaded" not in item])
         return schema
 
     except BaseException as e:
-        logger.error("Error while generating the schema for correlation id %s because of %s",
-        args.correlation_id,
+        logger.error("Error while generating the schema because of error : %s",
         str(e))
-        log_end_of_batch(logger, run_id, processing_dt, args, config, status=config["DEFAULT"]["Failed_Status"])
-        sys.exit(-1)
         
-def create_hive_tables_on_published(logger, spark, collection_name, df, path, run_id, processing_dt, args, config):
+def create_hive_tables_on_published(
+        logger, spark, collection_name, df, path, run_id, processing_dt, config):
+
     try:
-
-        create_db_query = f"""CREATE DATABASE IF NOT EXISTS {config["DEFAULT"]["published_database_name"]}"""
+        create_db_query = f"""CREATE DATABASE IF NOT EXISTS {config["published_database_name"]}"""
         spark.sql(create_db_query)
-        
-        schema = get_hive_schema(logger, df, run_id, processing_dt, args, config)
-        src_hive_table=config["DEFAULT"]["published_database_name"]+"."+collection_name
 
-        logger.info("Creating hive table for : %s for correlation id: %s",src_hive_table,args.correlation_id)
+        schema = get_hive_schema(logger, df)
 
+        src_hive_table=config["published_database_name"]+"."+collection_name
         src_hive_drop_query = f"DROP TABLE IF EXISTS {src_hive_table}"
+        spark.sql(src_hive_drop_query)
+
         src_hive_create_query = f"""
         CREATE EXTERNAL TABLE IF NOT EXISTS {src_hive_table} (
         {schema}
@@ -200,32 +207,52 @@ def create_hive_tables_on_published(logger, spark, collection_name, df, path, ru
         PARTITIONED BY (date_uploaded DATE)
         LOCATION '{path}'
         """
-        spark.sql(src_hive_drop_query)
         spark.sql(src_hive_create_query)
+
         spark.sql(f"MSCK REPAIR TABLE {src_hive_table}")
-        return True
-        
+
     except BaseException as ex:
-        logger.error("Problem with creating Hive tables for correlation Id: %s because of error: %s",args.correlation_id, str(ex))
-        log_end_of_batch(logger, run_id, processing_dt, args, config, status=config["DEFAULT"]["Failed_Status"])
+        logger.error("Problem with creating Hive tables because of error: %s", str(ex))
+        log_end_of_batch(
+            logger, hash_id=config["correlation_id"],
+            processing_dt=processing_dt, run_id=run_id, status=config["Failed_Status"], **config)
         sys.exit(-1)
 
 
-def clean_up_published_bucket(logger, spark, args, config, collections):
+def clean_up_published_bucket(
+        logger, spark, collections, s3_published_bucket,
+        published_database_name, module_name, correlation_id, **kwargs
+    ):
     try:
-        logger.info("Getting the cleanup not required prefix!!!")
+        logger.info("Clean up the old files generated on data location")
         s3 = boto3.resource('s3')
-        bucket = s3.Bucket(config['DEFAULT']['s3_published_bucket'])
+        bucket = s3.Bucket(s3_published_bucket)
         for collection in collections:
-            prefix_name=f'data/{config["DEFAULT"]["published_database_name"]}/non-pii/{collection}/'
+            prefix_name=f'data/{published_database_name}/non-pii/{collection}/'
             deleteObj = bucket.objects.filter(Prefix=prefix_name).delete()
-            src_hive_table=config["DEFAULT"]["published_database_name"]+"."+collection
-            catalog=Catalog(spark)
-            if check_database_exists(catalog, database_name=config["DEFAULT"]["published_database_name"]):
-                if check_table_exists(catalog, table_name=collection, database_name=config["DEFAULT"]["published_database_name"]):
-                    spark.sql(f"DROP TABLE {src_hive_table}")
             logger.info("folder deleted: %s", deleteObj)
 
+            logger.info("Drop existing Hive Metastore table")
+            src_hive_table=published_database_name+"."+collection
+            catalog=Catalog(spark)
+            if check_database_exists(catalog, database_name=published_database_name):
+                if check_table_exists(catalog, table_name=collection, database_name=published_database_name):
+                    spark.sql(f"DROP TABLE {src_hive_table}")
+
     except BaseException as ex:
-        logger.error("error while deleting the data %s", str(ex))
-        sys.exit(-1)
+        logger.error(f"Cleanup failed for {module_name} with {correlation_id} because of error {str(ex)}")
+        sys.exit(1)
+
+def flatten_df(nested_df):
+    flat_cols = []
+    nested_cols = []
+
+    flat_cols.append([c[0] for c in nested_df.dtypes if c[1][:6] != 'struct'])
+    nested_cols.append([c[0] for c in nested_df.dtypes if c[1][:6] == 'struct'])
+
+    flat_df = nested_df.select(flat_cols[0] +
+                                    [F.col(nc+'.'+c).alias(nc+'_'+c)
+                                     for nc in nested_cols[0]
+                                     for c in nested_df.select(nc+'.*').columns])
+
+    return flat_df
