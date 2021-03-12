@@ -61,6 +61,8 @@ def update_runtime_args_to_config(logger, args, config):
 
         if args.job_name == "":
             logger.warn("Job_Name Passed as blank, setting this variable to kickstart")
+            config["job_name"] = "kickstart"
+        else:
             config["job_name"] = args.job_name.lower()
 
         if args.module_name == "":
@@ -71,12 +73,12 @@ def update_runtime_args_to_config(logger, args, config):
         if args.start_dt == "":
             config["start_date"] = get_last_process_dt(logger, **config)
         else:
-            config["start_date"] = datetime.strftime(args.start_dt, "%Y-%m-%d")
+            config["start_date"] = args.start_dt
 
         if args.end_dt == "":
             config["end_date"] = datetime.strftime(datetime.now(), "%Y-%m-%d")
         else:
-            config["end_date"] = datetime.strftime(args.end_dt, "%Y-%m-%d")
+            config["end_date"] = args.end_dt
 
         if args.clean_up_flg == "":
             logger.warn("clean_up_flg Passed as blank, setting this variable to False as default")
@@ -88,7 +90,7 @@ def update_runtime_args_to_config(logger, args, config):
             logger.warn("clean_up_flg Passed as blank, setting this variable to False as default")
             config["e2e_test_flag"] = "false"
         else:
-            config["e2e_test_flag"] = args.clean_up_flg.lower()
+            config["e2e_test_flag"] = args.e2e_test_flg.lower()
 
     except BaseException as ex:
         logger.error("Error Generated while updating runtime value to config file because of error %s", str(ex))
@@ -185,7 +187,7 @@ def put_item(
         Item={
             audit_table_hash_key: hash_id,
             audit_table_range_key: audit_table_data_product_name,
-            "Date": datetime.strftime(processing_dt, "%Y-%m-%d"),
+            "Date": processing_dt,
             "Run_Id": run_id,
             "Status": status
         }

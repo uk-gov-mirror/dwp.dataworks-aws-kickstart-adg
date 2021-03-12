@@ -52,18 +52,6 @@ resource "aws_s3_bucket_object" "spark_steps_jobs_application_main" {
   content = file("${path.module}/steps/spark/jobs/vacancy/__main__.py")
 }
 
-resource "aws_s3_bucket_object" "spark_steps_jobs_payment_init" {
-  bucket = data.terraform_remote_state.common.outputs.config_bucket.id
-  key    = "component/kickstart-analytical-dataset-generation/steps/spark/jobs/payment/__init__.py"
-  content = file("${path.module}/steps/spark/jobs/vacancy/__init__.py")
-}
-
-resource "aws_s3_bucket_object" "spark_steps_jobs_payment_main" {
-  bucket = data.terraform_remote_state.common.outputs.config_bucket.id
-  key    = "component/kickstart-analytical-dataset-generation/steps/spark/jobs/payment/__main__.py"
-  content = file("${path.module}/steps/spark/jobs/vacancy/__main__.py")
-}
-
 resource "aws_s3_bucket_object" "spark_steps_main" {
   bucket = data.terraform_remote_state.common.outputs.config_bucket.id
   key    = "component/kickstart-analytical-dataset-generation/steps/spark/main.py"

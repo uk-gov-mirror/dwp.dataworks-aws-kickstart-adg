@@ -11,12 +11,13 @@ def get_spark_session(logger, job_name, module_name, **kwargs):
     try:
         spark = (
             SparkSession.builder.master("yarn")
-                .appName(f"{job_name}-{module_name}")
+                .appName(f'{job_name}-{module_name}')
                 .enableHiveSupport()
                 .getOrCreate()
         )
         spark.conf.set("spark.scheduler.mode", "FAIR")
         spark.conf.set("spark.sql.sources.partitionOverwriteMode", "dynamic")
+
     except BaseException as ex:
         logger.error("Not able to generate the spark session because of error : %s ", str(ex))
         sys.exit(1)

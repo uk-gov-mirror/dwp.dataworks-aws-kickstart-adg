@@ -78,7 +78,7 @@ def main(config):
 
                 logger.info(f'get the list of files for {s3_prefix} in the {config["s3_src_bucket"]} for given module {config["module_name"]} with correlation id {config["correlation_id"]}')
                 s3_client = utils.get_s3_client(sts_token)
-                keys = utils.get_list_keys_for_prefix(logger, s3_client, s3_prefix, s3_src_bucket=config["s3_src_bucket"])
+                keys = utils.get_list_keys_for_prefix(logger, s3_client, s3_prefix, s3_bucket=config["s3_src_bucket"])
 
                 if keys:
                     logger.info(f'Execute the job for given module {config["module_name"]} with correlation id {config["correlation_id"]}')
@@ -121,7 +121,7 @@ def main(config):
         logger.info('Process is complete without exception in %s seconds' % round(end_time - start_time))
 
     except BaseException as ex:
-        logger.error("Main Process Failed")
+        logger.error("Main Process Failed because of error: %s ", str(ex))
         sys.exit(1)
 
 

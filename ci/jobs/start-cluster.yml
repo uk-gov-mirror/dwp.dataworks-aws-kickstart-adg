@@ -9,8 +9,8 @@ jobs:
             CORRELATION_ID: "kickstart_vacancy_analytical_dataset_generation"
             JOB_NAME: "kickstart"
             MODULE_NAME: "vacancy"
-            START_DT: "2021-02-24"
-            END_DT: "2021-02-25"
+            START_DT: "2021-03-10"
+            END_DT: "2021-03-10"
             CLEAN_UP_FLG: True
 
   - name: start-cluster-qa
