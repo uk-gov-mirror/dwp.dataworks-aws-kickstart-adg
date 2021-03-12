@@ -4,7 +4,7 @@ jobs:
     plan:
       - get: dataworks-aws-kickstart-adg
         trigger: true
-      - get: emr-ami
+      - get: al2-emr-ami
         trigger: true
       - get: emr-launcher-release
         trigger: true

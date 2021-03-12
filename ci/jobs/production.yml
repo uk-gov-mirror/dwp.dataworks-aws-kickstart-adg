@@ -6,7 +6,7 @@ jobs:
         trigger: true
         passed:
           - preprod
-      - get: emr-ami
+      - get: al2-emr-ami
         trigger: true
         passed:
           - preprod

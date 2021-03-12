@@ -14,7 +14,6 @@ def get_spark_session(job_name, module_name):
             .enableHiveSupport()
             .getOrCreate()
     )
-    spark.conf.set("spark.scheduler.mode", "FAIR")
     spark.conf.set("spark.sql.sources.partitionOverwriteMode", "dynamic")
     return spark
 

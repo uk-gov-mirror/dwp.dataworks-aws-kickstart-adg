@@ -220,3 +220,27 @@ resource "aws_security_group_rule" "hive_metastore_from_kickstart_adg" {
   security_group_id        = aws_security_group.kickstart_adg_common.id
   source_security_group_id = data.terraform_remote_state.adg.outputs.hive_metastore.security_group.id
 }
+
+resource "aws_security_group_rule" "kickstart_adg_to_hive_metastore_v2" {
+  description              = "Kickstart ADG to Hive Metastore v2"
+  type                     = "ingress"
+  from_port                = 3306
+  to_port                  = 3306
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.kickstart_adg_common.id
+  security_group_id        = data.terraform_remote_state.internal_compute.outputs.hive_metastore_v2.security_group.id
+}
+
+resource "aws_security_group_rule" "hive_metastore_v2_from_kickstart_adg" {
+  description              = "Hive Metastore v2  from kickstart adg"
+  type                     = "egress"
+  from_port                = 3306
+  to_port                  = 3306
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.kickstart_adg_common.id
+  source_security_group_id = data.terraform_remote_state.internal_compute.outputs.hive_metastore_v2.security_group.id
+}
+
+output "kickstart_common_sg" {
+  value = aws_security_group.kickstart_adg_common
+}
