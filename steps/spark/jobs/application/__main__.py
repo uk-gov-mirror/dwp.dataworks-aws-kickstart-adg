@@ -13,10 +13,10 @@ def execute(logger, spark,  keys, s3_client, processing_dt, run_id, sts_token, c
 
         logger.info(f"Extract Data from the file")
         for key in keys:
-            encrypted_key_content = utils.get_bodyfor_key(logger, key, s3_client, s3_src_bucket=config["s3_src_bucket"])
+            encrypted_key_content = utils.get_bodyfor_key(logger, key, s3_client, bucket=config["s3_src_bucket"])
 
             logger.info(f'extract the metadata of the file {config["correlation_id"]}')
-            metadata = utils.get_metadatafor_key(key=key, s3_client=s3_client, bucket=config["s3_src_bucket"])
+            metadata = utils.get_metadatafor_key(logger, key=key, s3_client=s3_client, bucket=config["s3_src_bucket"])
             ciphertext, datakeyencryptionkeyid, iv = metadata["ciphertext"], metadata["datakeyencryptionkeyid"], metadata["iv"]
 
             logger.info("Extracting the plain text key")
@@ -41,5 +41,5 @@ def execute(logger, spark,  keys, s3_client, processing_dt, run_id, sts_token, c
     except BaseException as ex:
         utils.log_end_of_batch(
             logger, hash_id=config["correlation_id"],
-            processing_dt=processing_dt, run_id=run_id, status=config["Failed_Status"], **config)
+            processing_dt=datetime.strftime(processing_dt, "%Y-%m-%d"), run_id=run_id, status=config["Failed_Status"], **config)
 

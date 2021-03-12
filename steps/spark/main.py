@@ -82,7 +82,7 @@ def main(config):
 
                 if keys:
                     logger.info(f'Execute the job for given module {config["module_name"]} with correlation id {config["correlation_id"]}')
-                    jobs.execute(logger, spark, keys, s3_client, config)
+                    jobs.execute(logger, spark,  keys, s3_client, processing_dt, run_id, sts_token, config)
 
                 else:
                     logger.warn(f'the file {s3_prefix} does not exits in the {config["s3_src_bucket"]} for given module {config["module_name"]} with correlation id {config["correlation_id"]}')

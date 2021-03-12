@@ -332,9 +332,13 @@ def get_metadatafor_key(logger, key, s3_client, bucket):
 def get_plaintext_key_calling_dks(
         logger, encryptedkey, keyencryptionkeyid, config
 ):
-    keys_map={}
-    key = call_dks(logger, encryptedkey, keyencryptionkeyid, **config)
-    keys_map[encryptedkey] = key
+    try:
+        keys_map={}
+        key = call_dks(logger, encryptedkey, keyencryptionkeyid, **config)
+        keys_map[encryptedkey] = key
+    except BaseException as ex:
+        logger.error("Problem while calling the dks because of error: %s ", str(ex))
+
     return key
 
 def call_dks(logger, cek, kek, url, correlation_id, **kwargs):
@@ -355,7 +359,7 @@ def call_dks(logger, cek, kek, url, correlation_id, **kwargs):
 
     except BaseException as ex:
         logger.error(
-            "Problem calling DKS because of error: %s ", str(ex)
+            "Problem calling DKS URL because of error: %s ", str(ex)
         )
         sys.exit(1)
 
