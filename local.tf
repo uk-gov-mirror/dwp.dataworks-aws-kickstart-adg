@@ -41,7 +41,7 @@ locals {
   kickstart_adg_emr_lambda_schedule = {
     development = "0 5 * * ? 2029"
     qa          = "0 5 * * ? 2029"
-    integration = "0 19 * * ? *"
+    integration = "0 19 * * ? 2029"
     preprod     = "0 5 * * ? 2029"
     production  = "0 5 * * ? *"
   }

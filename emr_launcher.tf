@@ -163,7 +163,7 @@ data "aws_iam_policy_document" "kickstart_adg_emr_launcher_getsecrets" {
     ]
 
     resources = [
-      data.aws_secretsmanager_secret.rds_aurora_secrets.arn,
+      data.terraform_remote_state.internal_compute.outputs.metadata_store_users.kickstart_adg_writer.secret_arn,
     ]
   }
 }

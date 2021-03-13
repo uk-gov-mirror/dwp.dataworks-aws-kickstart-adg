@@ -65,12 +65,6 @@ locals {
   spark_kyro_buffer                   = var.spark_kyro_buffer[local.environment]
 }
 
-data "aws_secretsmanager_secret" "rds_aurora_secrets" {
-  provider = aws
-  name     = "metadata-store-kickstart-adg-writer"
-}
-
-
 resource "aws_s3_bucket_object" "configurations" {
   bucket = data.terraform_remote_state.common.outputs.config_bucket.id
   key    = "emr/kickstart_adg/configurations.yaml"
@@ -92,10 +86,11 @@ resource "aws_s3_bucket_object" "configurations" {
       spark_executor_instances            = local.spark_num_executors_per_instance
       spark_default_parallelism           = local.spark_default_parallelism
       spark_kyro_buffer                   = local.spark_kyro_buffer
-      hive_metsatore_username             = var.metadata_store_adg_writer_username
-      hive_metastore_pwd                  = data.aws_secretsmanager_secret.rds_aurora_secrets.name
-      hive_metastore_endpoint             = data.terraform_remote_state.adg.outputs.hive_metastore.rds_cluster.endpoint
-      hive_metastore_database_name        = data.terraform_remote_state.adg.outputs.hive_metastore.rds_cluster.database_name
+      hive_metsatore_username             = data.terraform_remote_state.internal_compute.outputs.metadata_store_users.kickstart_adg_writer.username
+      hive_metastore_pwd                  = data.terraform_remote_state.internal_compute.outputs.metadata_store_users.kickstart_adg_writer.secret_name
+      hive_metastore_endpoint             = data.terraform_remote_state.internal_compute.outputs.hive_metastore_v2.rds_cluster.endpoint
+      hive_metastore_database_name        = data.terraform_remote_state.internal_compute.outputs.hive_metastore_v2.rds_cluster.database_name
+      environment                         = local.environment
       }
   )
 }

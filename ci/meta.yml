@@ -48,7 +48,7 @@ meta:
           args:
             - -exc
             - |
-              export TF_VAR_emr_ami_id=$(cat ../emr-ami/id)
+              export TF_VAR_emr_ami_id=$(cat ../al2-emr-ami/id)
               export TF_VAR_emr_launcher_zip="{base_path = \"../emr-launcher-release\", version = \"$(cat ../emr-launcher-release/version)\"}"
               cp ../terraform-bootstrap/terraform.tf .
               terraform workspace show
@@ -59,7 +59,7 @@ meta:
         inputs:
           - name: dataworks-aws-kickstart-adg
           - name: terraform-bootstrap
-          - name: emr-ami
+          - name: al2-emr-ami
           - name: emr-launcher-release
 
     terraform-plan:
@@ -71,7 +71,7 @@ meta:
           args:
             - -exc
             - |
-              export TF_VAR_emr_ami_id=$(cat ../emr-ami/id)
+              export TF_VAR_emr_ami_id=$(cat ../al2-emr-ami/id)
               export TF_VAR_emr_launcher_zip="{base_path = \"../emr-launcher-release\", version = \"$(cat ../emr-launcher-release/version)\"}"
               cp ../terraform-bootstrap/terraform.tf .
               terraform workspace show
@@ -81,7 +81,7 @@ meta:
         inputs:
           - name: dataworks-aws-kickstart-adg
           - name: terraform-bootstrap
-          - name: emr-ami
+          - name: al2-emr-ami
           - name: emr-launcher-release
         params:
           DETAILED_EXITCODE: -detailed-exitcode

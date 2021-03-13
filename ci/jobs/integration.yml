@@ -6,7 +6,7 @@ jobs:
         trigger: true
         passed:
           - qa
-      - get: emr-ami
+      - get: al2-emr-ami
         trigger: true
         passed:
           - qa

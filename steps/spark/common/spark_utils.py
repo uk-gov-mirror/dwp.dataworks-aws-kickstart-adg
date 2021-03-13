@@ -15,7 +15,6 @@ def get_spark_session(logger, job_name, module_name, **kwargs):
                 .enableHiveSupport()
                 .getOrCreate()
         )
-        spark.conf.set("spark.scheduler.mode", "FAIR")
         spark.conf.set("spark.sql.sources.partitionOverwriteMode", "dynamic")
 
     except BaseException as ex:
