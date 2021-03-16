@@ -13,7 +13,7 @@ def main(config):
 
     try:
         start_time = time.perf_counter()
-        status = {}
+        status = []
 
         log = importlib.import_module("common.logger")
         utils = importlib.import_module("common.utils")
@@ -38,7 +38,7 @@ def main(config):
             logger.error(
                 "Issue while importing the module. Please check the spelling or module has not been configured yet. The error is %s". str(e)
             )
-            sys.exit(1)
+            sys.exit(-1)
 
         logger.info(f'Extract the collection names for module {config["module_name"]} with correlation id: {config["correlation_id"]}')
         secrets_response = utils.retrieve_secrets(logger,**config)
@@ -82,16 +82,26 @@ def main(config):
 
                 if keys:
                     logger.info(f'Execute the job for given module {config["module_name"]} with correlation id {config["correlation_id"]}')
-                    jobs.execute(logger, spark,  keys, s3_client, processing_dt, run_id, sts_token, config)
+                    initial_spark_schemas=utils.get_initial_spark_schemas(logger, secrets_response, **config)
+                    jobs.execute(logger,
+                                 spark,
+                                 keys,
+                                 s3_client,
+                                 processing_dt,
+                                 run_id,
+                                 sts_token,
+                                 collection,
+                                 initial_spark_schemas,
+                                 config)
 
                 else:
                     logger.warn(f'the file {s3_prefix} does not exits in the {config["s3_src_bucket"]} for given module {config["module_name"]} with correlation id {config["correlation_id"]}')
-                    status["Processing_Dt"].append((datetime.strftime(processing_dt, "%Y-%m-%d"), f"File Not Found for {s3_prefix}"))
+                    status.append((datetime.strftime(processing_dt, "%Y-%m-%d"), f"File Not Found for {s3_prefix}"))
                     continue
 
             logger.info(f"adding the complete/failed status to audit table for correlation_id {args.correlation_id} with run id {run_id}")
 
-            if status is None:
+            if not status:
                 logger.info(f'Update audit table  for given module {config["module_name"]} with correlation id {config["correlation_id"]}')
                 utils.log_end_of_batch(
                     logger, hash_id=config["correlation_id"], processing_dt=datetime.strftime(processing_dt, "%Y-%m-%d"),
@@ -104,15 +114,16 @@ def main(config):
                 processing_dt = processing_dt + timedelta(days=1)
 
             else:
-                for item in status["Processing_Dt"]:
+                for item in status:
                     utils.log_end_of_batch(
                         logger, hash_id=f'{config["correlation_id"]}_{run_id}',
                         processing_dt=item[1], run_id=1, status=config["Failed_Status"], **config)
 
                 utils.log_end_of_batch(
                     logger, hash_id=config["correlation_id"],
-                    processing_dt=processing_dt, run_id=run_id, status=config["Failed_Status"], **config)
+                    processing_dt=datetime.strftime(processing_dt, "%Y-%m-%d"), run_id=run_id, status=config["Failed_Status"], **config)
 
+                end_time = time.perf_counter()
                 logger.info('Process is complete with exception in %s seconds' % round(end_time - start_time))
                 logger.error(f"looks like 1 or more files are not present in the source bucket.Aborting the spark process")
                 sys.exit(1)
@@ -120,9 +131,10 @@ def main(config):
         end_time = time.perf_counter()
         logger.info('Process is complete without exception in %s seconds' % round(end_time - start_time))
 
+
     except BaseException as ex:
         logger.error("Main Process Failed because of error: %s ", str(ex))
-        sys.exit(1)
+        sys.exit(-1)
 
 
 if __name__ == '__main__':

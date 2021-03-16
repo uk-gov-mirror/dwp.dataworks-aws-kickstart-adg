@@ -1,4 +1,5 @@
 import json
+import re
 import base64
 import argparse
 import boto3
@@ -29,7 +30,6 @@ def get_config(logger, path):
 
 def get_parameters(logger):
     try:
-
         parser = argparse.ArgumentParser(
             description="Receive args provided to spark submit job"
         )
@@ -47,8 +47,8 @@ def get_parameters(logger):
             logger.warn("Found unknown parameters during runtime %s", str(unrecognized_args))
 
     except BaseException as ex:
-        logger.error("Failed to get runtime parameters due to error %s", str(ex))
-        sys.exit(1)
+        logger.error("Failed to get runtime parameters because of error: %s ", str(ex))
+        sys.exit(-1)
 
     return args
 
@@ -93,8 +93,8 @@ def update_runtime_args_to_config(logger, args, config):
             config["e2e_test_flag"] = args.e2e_test_flg.lower()
 
     except BaseException as ex:
-        logger.error("Error Generated while updating runtime value to config file because of error %s", str(ex))
-        sys.exit(1)
+        logger.error("Failed to update the config file because of error: %s ", str(ex))
+        sys.exit(-1)
 
     return config
 
@@ -131,26 +131,27 @@ def retrieve_secrets(logger, aws_secret_name, **kwargs):
         response_dict = ast.literal_eval(response)
 
     except BaseExeption as ex:
-        logger.error("Error while getting secrets from secret manager because of error %s", str(ex))
+        logger.error("Failed while getting secrets from secret manager because of error: %s ", str(ex))
         sys.exit(1)
 
     return response_dict
 
-def get_collections(logger, secrets_response, module_name, correlation_id, **kwargs):
+def get_collections(logger, secrets_response, module_name, **kwargs):
         try:
             collections = secrets_response["collections"][module_name]
-        except:
-            logger.error(f"Problem with collections list for correlation Id: {correlation_id}")
-            sys.exit(1)
+
+        except BaseException as ex:
+            logger.error(f"Failed to get secrets because of error: %s", str(ex))
+            sys.exit(-1)
 
         return collections
 
-def get_source_bucket_name(logger, secrets_response, correlation_id, module_name, **kwargs):
+def get_source_bucket_name(logger, secrets_response, module_name, **kwargs):
     try:
         bucket_name = secrets_response["src_bucket_names"][module_name]
         return bucket_name
-    except Exception as ex:
-        logger.error(f"Problem in getting bucket name for correlation Id: {correlation_id} because of error {str(ex)}")
+    except BaseException as ex:
+        logger.error(f"Failed to get source bucket name because of error: %s", str(ex))
         sys.exit(-1)
 
 def get_log_start_of_batch(
@@ -174,9 +175,8 @@ def get_log_start_of_batch(
                 audit_table_data_product_name, hash_id, run_id, processing_dt, status)
     
     except BaseException as ex:
-        logger.error("Problem updating audit table status for correlation id : %s %s",
-                     hash_id,str(ex))
-        sys.exit(1)
+        logger.error("Failed to get update dynamodb table with start entry because of error: %s", str(ex))
+        sys.exit(-1)
     
     return run_id
 
@@ -236,9 +236,9 @@ def get_list_keys_for_prefix(logger, s3_client, s3_prefix, s3_bucket):
         if s3_prefix in keys:
             keys.remove(s3_prefix)
 
-    except Exception as ex:
-        logger.error(f"Problem while extracting the list of keys because of error {str(ex)}")
-        sys.exit(1)
+    except BaseException as ex:
+        logger.error(f"Failed to extract the list of keys because of error: %s", str(ex))
+        sys.exit(-1)
 
     return keys
 
@@ -254,8 +254,7 @@ def log_end_of_batch(
             audit_table_data_product_name, hash_id, run_id, processing_dt, status)
     
     except BaseException as ex:
-        logger.error("Problem updating audit table end status for correlation id: %s because of error %s",
-                     hash_id,str(ex))
+        logger.error("Failed to update the dynamodb table with final entry because of error %s",str(ex))
         sys.exit(1)
 
 def tag_objects(logger, s3_publish_bucket, prefix, config, table, access_pii='false'):
@@ -266,11 +265,11 @@ def tag_objects(logger, s3_publish_bucket, prefix, config, table, access_pii='fa
                 Bucket=s3_publish_bucket,
                 Key=key["Key"],
                 Tagging={"TagSet": [{"Key": "pii", "Value": access_pii},
-                                    {"Key": "db", "Value": config["DEFAULT"]["published_database_name"]},
+                                    {"Key": "db", "Value": config["published_database_name"]},
                                     {"Key": "table", "Value": table}]},
             )
     except BaseException as e:
-        logger.error("Issue while tagging the s3 objects because of error %s", str(e))
+        logger.error("Failed to tag s3 objects because of error %s", str(e))
         sys.exit(-1)
 
 def get_last_process_dt(
@@ -296,10 +295,7 @@ def get_last_process_dt(
         return process_dt
 
     except BaseException as ex:
-        logger.error("Problem in getting last process date for correlation id: %s: %s",
-                     correlation_id,
-                     str(ex)
-                     )
+        logger.error("Failed to get last process date because of error: %s",str(ex))
         sys.exit(-1)
 
 def get_bodyfor_key(logger, key, s3_client, bucket):
@@ -307,8 +303,8 @@ def get_bodyfor_key(logger, key, s3_client, bucket):
         s3_object = s3_client.get_object(Bucket=bucket, Key=key)
 
     except BaseException as ex:
-        logger.error("Failed to read the file because of error: %s ", str(ex))
-        sys.exit(1)
+        logger.error("Failed to read the content of the file because of error: %s ", str(ex))
+        sys.exit(-1)
 
     return s3_object["Body"].read()
 
@@ -324,8 +320,8 @@ def get_metadatafor_key(logger, key, s3_client, bucket):
             "datakeyencryptionkeyid": datakeyencryptionkeyid,
         }
     except BaseException as ex:
-        logger.error("Failed to extract metadata because of error: %s ", str(ex))
-        sys.exit(1)
+        logger.error("Failed to extract metadata of the file because of error: %s ", str(ex))
+        sys.exit(-1)
 
     return metadata
 
@@ -337,7 +333,7 @@ def get_plaintext_key_calling_dks(
         key = call_dks(logger, encryptedkey, keyencryptionkeyid, **config)
         keys_map[encryptedkey] = key
     except BaseException as ex:
-        logger.error("Problem while calling the dks because of error: %s ", str(ex))
+        logger.error("Failed to get plain text key because of error: %s ", str(ex))
 
     return key
 
@@ -359,7 +355,7 @@ def call_dks(logger, cek, kek, url, correlation_id, **kwargs):
 
     except BaseException as ex:
         logger.error(
-            "Problem calling DKS URL because of error: %s ", str(ex)
+            "Failed to call DKS service because of error: %s ", str(ex)
         )
         sys.exit(1)
 
@@ -386,24 +382,30 @@ def decrypt(logger, plain_text_key, iv_key, data):
         decrypted = aes.decrypt(data)
     except BaseException as ex:
         logger.error(
-            "Problem decrypting data because of error: %s",str(ex),
+            "Failed to decrypt the content because of error: %s",str(ex),
         )
-        sys.exit(1)
+        sys.exit(-1)
 
     return decrypted.decode("utf-8")
 
 def get_pii_non_pii_fields(logger, data):
     try:
+        fields = data["fields"]
         pii_fields, non_pii_fields = [],[]
-        for field in data["fields"]:
+        for field in fields:
             if str(field["pii"]).lower() == "true":
-                pii_fields.append(field["fieldName"])
+                pii_fields.append(field["fieldName"][0].lower() + re.sub(r'(?!^)[A-Z]', lambda x: '_' + x.group(0).lower(), field["fieldName"][1:]))
             elif str(field["pii"]).lower() == "false":
-                non_pii_fields.append(field["fieldName"])
+                non_pii_fields.append(field["fieldName"][0].lower() + re.sub(r'(?!^)[A-Z]', lambda x: '_' + x.group(0).lower(), field["fieldName"][1:]))
 
     except BaseException as ex:
         logger.error("Failed to generated pii and non pii fields because of error: %s ", str(ex))
         sys.exit(1)
+    return [pii_fields, non_pii_fields]
 
-    return pii_fields, non_pii_fields
-
+def get_initial_spark_schemas(logger,secrets_response, module_name, **kwargs):
+    try:
+        return secrets_response["initial_spark_schema"][module_name]
+    except BaseException as ex:
+        logger.error("Process failed at this step because of error: %s", str(ex))
+        sys.exit(-1)

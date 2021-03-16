@@ -1,11 +1,15 @@
 import sys
 import re
 import boto3
+
+from datetime import datetime, timedelta
+
 import pyspark
 from pyspark.sql import SparkSession, Catalog
 from pyspark.sql import functions as F
 from pyspark.sql.types import *
-from common.utils import log_end_of_batch
+
+
 
 def get_spark_session(logger, job_name, module_name, **kwargs):
     try:
@@ -18,8 +22,8 @@ def get_spark_session(logger, job_name, module_name, **kwargs):
         spark.conf.set("spark.sql.sources.partitionOverwriteMode", "dynamic")
 
     except BaseException as ex:
-        logger.error("Not able to generate the spark session because of error : %s ", str(ex))
-        sys.exit(1)
+        logger.error("Failed to generate the spark session because of error : %s ", str(ex))
+        sys.exit(-1)
 
     return spark
 
@@ -48,7 +52,7 @@ def convert_to_spark_schema(logger, datatype):
         return conversion_mapping[datatype]
 
     except BaseException as ex:
-        logger.error("Problem while getting compatible schema for spark for error %s", str(e))
+        logger.error("Failed to get compatible schema for spark becuase of error: %s", str(e))
         sys.exit(-1)
 
 
@@ -64,7 +68,7 @@ def get_old_schema(logger, spark, schema, database_name, table_name):
         return schema
 
     except BaseException as e:
-        logger.error("Error while extracting old schema due %s", str(e))
+        logger.error("Failed to get old schema because of error: %s", str(e))
         sys.exit(-1)
 
 def source_extraction(logger, spark, path, sts_token, source_type):
@@ -85,14 +89,15 @@ def source_extraction(logger, spark, path, sts_token, source_type):
                       .load(path)
 
         if source_type.lower() == "json":
+            rdd = spark.sparkContext.parallelize(path)
             df = spark.read\
                       .option("multiline", True)\
                       .option("timestampFormat", "yyyy-MM-dd HH:mm:ss")\
-                      .json(path)
+                      .json(rdd)
 
     except BaseException as ex:
         logger.error(
-            "Problem while reading file because of error %s", str(ex)
+            "Failed to read the source file into spark dataframe because of error: %s", str(ex)
         )
 
     return df
@@ -119,7 +124,7 @@ def get_update_dataframe(logger, new_schema_df, old_schema, new_schema):
                                             .withColumnRenamed(f"{column}_1", column)
 
     except BaseException as e:
-        logger.error("error occurred while updating the dataframe because of error: %s", str(e))
+        logger.error("Failed to update the dataframe because of error: %s", str(e))
         sys.exit(-1)
 
     return new_schema_df
@@ -130,33 +135,60 @@ def get_evolved_schema(logger, old_schema_df, new_schema_df):
         if old_schema != new_schema:
             update_df = get_update_dataframe(logger, new_schema_df, old_schema, new_schema)
             return update_df
+
         logger.info("No change in schema. Skipping the schema evolution logic")
         return new_schema_df
+
     except BaseException as ex:
-        logger.error("Problem while evolving the schema %s", str(ex))
+        logger.error("Failed to get evolved schema because of error: %s", str(ex))
         sys.exit(-1)
 
 
-def transformation(logger, spark, schema, source_df, run_id, processing_dt, config):
+def transformation(logger, spark, source_df, processing_dt, initial_spark_schemas, config, collection, pii=False):
     try:
-        new_df = source_df.select([F.col(col).alias(re.sub("[^0-9a-zA-Z$]+", " ", col).strip().replace(" ", "_").lower()) for col in source_df.columns])
-        new_df = new_df.withColumn("date_uploaded", F.lit(processing_dt)) \
-                       .withColumn("error_desc", F.lit(None).cast(ArrayType(StringType())))
+        if config["module_name"] == "vacancy":
+            new_df = source_df.select([F.col(col).alias(re.sub("[^0-9a-zA-Z$]+", " ", col).strip().replace(" ", "_").lower()) for col in source_df.columns])
+            new_df = new_df.withColumn("date_uploaded", F.lit(datetime.strftime(processing_dt, "%Y-%m-%d"))) \
+                           .withColumn("error_desc", F.lit(None).cast(ArrayType(StringType())))
 
-        old_df = spark.createDataFrame([], schema)
+            schema=get_old_schema(logger,
+                                  spark,
+                                  schema=initial_spark_schemas[collection],
+                                  database_name=config["published_database_name"],
+                                  table_name=collection)
+            old_df = spark.createDataFrame([], schema)
+            evolved_df = get_evolved_schema(logger, old_df, new_df)
 
-        evolved_df = get_evolved_schema(logger, old_df, new_df)
+            return evolved_df
 
-        return evolved_df
+        elif config["module_name"] == "application":
+            new_df = source_df.select([F.col(col).alias(col[0].lower() + re.sub(r'(?!^)[A-Z]', lambda x: '_' + x.group(0).lower(), col[1:])) for col in source_df.columns])
+            new_df = new_df.withColumn("date_uploaded", F.lit(datetime.strftime(processing_dt, "%Y-%m-%d"))) \
+                           .withColumn("error_desc", F.lit(None).cast(ArrayType(StringType())))\
+                           .withColumn("row_hash_id", F.sha2(F.concat_ws("||", *new_df.columns), 256))
+
+            old_schema=get_old_schema(logger,
+                                  spark,
+                                  schema=initial_spark_schemas[collection],
+                                  database_name=config["published_database_name"],
+                                  table_name=collection)
+
+            old_schema_df = spark.createDataFrame([], old_schema)
+
+            if pii:
+                pii_new_schema_df = new_df.select([col for col in new_df.columns if col in config["pii_fields"] or col in ("row_hash_id", "date_uploaded", "error_desc") ])
+                pii_evolved_df = get_evolved_schema(logger, old_schema_df, pii_new_schema_df)
+                return pii_evolved_df
+            else:
+                non_pii_new_schema_df = new_df.select([col for col in new_df.columns if col in config["non_pii_fields"] or col in ("row_hash_id", "date_uploaded", "error_desc")])
+                non_pii_evolved_df = get_evolved_schema(logger, old_schema_df, non_pii_new_schema_df)
+                return non_pii_evolved_df
 
     except BaseException as ex:
-        logger.error("Problem while applying transformation because of error: %s", str(ex))
-        log_end_of_batch(
-            logger, hash_id=config["correlation_id"],
-            processing_dt=processing_dt, run_id=run_id, status=config["Failed_Status"], **config)
+        logger.error("Failed to transformation the source dataframe because of error: %s", str(ex))
         sys.exit(-1)
 
-def writer_parquet(logger, spark, df, path, run_id, processing_dt, config):
+def writer_parquet(logger, spark, df, path):
     try:
 
         spark.sparkContext._jsc.hadoopConfiguration().unset("fs.s3.awsCredentialsProvider")
@@ -170,13 +202,7 @@ def writer_parquet(logger, spark, df, path, run_id, processing_dt, config):
           .parquet(path)
 
     except BaseException as e:
-        logger.error("Problem in writing the files for correlation_id %s for run id %s due to error %s",
-        config["correlation_id"],run_id,str(e))
-        log_end_of_batch(
-            logger, hash_id=config["correlation_id"],
-            processing_dt=processing_dt, run_id=run_id, status=config["Failed_Status"], **config)
-        sys.exit(-1)
-
+        logger.error("Failed to write the transformed dataframe because of error: %s",str(e))
 
 def get_hive_schema(logger, df):
     try:
@@ -184,11 +210,11 @@ def get_hive_schema(logger, df):
         return schema
 
     except BaseException as e:
-        logger.error("Error while generating the schema because of error : %s",
+        logger.error("Failed to generate hive schema because of error: %s",
         str(e))
         
 def create_hive_tables_on_published(
-        logger, spark, collection_name, df, path, run_id, processing_dt, config):
+        logger, spark, collection_name, df, path, config):
 
     try:
         create_db_query = f"""CREATE DATABASE IF NOT EXISTS {config["published_database_name"]}"""
@@ -212,10 +238,7 @@ def create_hive_tables_on_published(
         spark.sql(f"MSCK REPAIR TABLE {src_hive_table}")
 
     except BaseException as ex:
-        logger.error("Problem with creating Hive tables because of error: %s", str(ex))
-        log_end_of_batch(
-            logger, hash_id=config["correlation_id"],
-            processing_dt=processing_dt, run_id=run_id, status=config["Failed_Status"], **config)
+        logger.error("Failed to create Hive tables because of error: %s", str(ex))
         sys.exit(-1)
 
 
@@ -240,19 +263,5 @@ def clean_up_published_bucket(
                     spark.sql(f"DROP TABLE {src_hive_table}")
 
     except BaseException as ex:
-        logger.error(f"Cleanup failed for {module_name} with {correlation_id} because of error {str(ex)}")
-        sys.exit(1)
-
-def flatten_df(nested_df):
-    flat_cols = []
-    nested_cols = []
-
-    flat_cols.append([c[0] for c in nested_df.dtypes if c[1][:6] != 'struct'])
-    nested_cols.append([c[0] for c in nested_df.dtypes if c[1][:6] == 'struct'])
-
-    flat_df = nested_df.select(flat_cols[0] +
-                                    [F.col(nc+'.'+c).alias(nc+'_'+c)
-                                     for nc in nested_cols[0]
-                                     for c in nested_df.select(nc+'.*').columns])
-
-    return flat_df
+        logger.error(f"Failed to clean-up for {module_name} with {correlation_id} because of error: {str(ex)}")
+        sys.exit(-1)
