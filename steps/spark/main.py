@@ -32,7 +32,7 @@ def main(config):
 
         logger.info(f'Import the job libraries for module {config["module_name"]} with correlation id: {config["correlation_id"]}')
         try:
-            jobs = importlib.import_module('jobs.%s.__main__' % config["module_name"])
+            jobs = importlib.import_module('jobs.%s.__main__' % config["encryption_type"])
 
         except Exception as e:
             logger.error(
@@ -66,14 +66,14 @@ def main(config):
             for collection in collections:
 
                 logger.info("set the prefix name and other parameters requied for processing")
-                s3_prefix = f"{processing_dt.date()}_{collection}"
+                s3_prefix = f'{processing_dt.date()}_{config["module_name"]}-{collection}' if config["module_name"] in ("application", "payment") else f'{processing_dt.date()}_{collection}'
                 config["s3_src_bucket"] = utils.get_source_bucket_name(logger, secrets_response, **config)
                 sts_token = utils.get_sts_token(logger, **config)
 
                 if config["e2e_test_flag"] == "true":
                     logger.warn("End 2 End test flag has been set. This will look for file within local bucket")
                     config["s3_src_bucket"]=config['s3_published_bucket']
-                    s3_prefix=os.path.join(config['e2e_test_folder'], f"{processing_dt.date()}_{collection}")
+                    s3_prefix=os.path.join(config['e2e_test_folder'], s3_prefix)
                     sts_token=None
 
                 logger.info(f'get the list of files for {s3_prefix} in the {config["s3_src_bucket"]} for given module {config["module_name"]} with correlation id {config["correlation_id"]}')
@@ -99,7 +99,7 @@ def main(config):
                     status.append((datetime.strftime(processing_dt, "%Y-%m-%d"), f"File Not Found for {s3_prefix}"))
                     continue
 
-            logger.info(f"adding the complete/failed status to audit table for correlation_id {args.correlation_id} with run id {run_id}")
+            logger.info(f'adding the complete/failed status to audit table for correlation_id {config["correlation_id"]} with run id {run_id}')
 
             if not status:
                 logger.info(f'Update audit table  for given module {config["module_name"]} with correlation id {config["correlation_id"]}')

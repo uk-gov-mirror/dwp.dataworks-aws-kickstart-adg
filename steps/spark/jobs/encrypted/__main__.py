@@ -38,45 +38,29 @@ def execute(logger, spark,  keys, s3_client, processing_dt, run_id, sts_token, c
         destination_bucket = config['s3_published_bucket']
         domain_name=config["published_database_name"]
 
+        logger.info("Apply transformation to source data")
+        transformed_df = spark_utils.transformation(
+                logger, spark, source_df, processing_dt, initial_spark_schemas,
+                config, collection)
+
+        logger.info("write data into required destination")
+        destination_folder = f"data/{domain_name}/{collection}/"
+        destination_path = f"s3://{destination_bucket}/{destination_folder}"
+        spark_utils.writer_parquet(
+                logger, spark, transformed_df, destination_path)
+
+        logger.info("create hive table data")
+        spark_utils.create_hive_tables_on_published(
+                logger, spark, collection, transformed_df, destination_path, config)
+
+        logger.info("tag non-pii objects based on rbac model")
+        utils.tag_objects(
+            logger, destination_bucket, destination_folder, config, table=collection, access_pii='false' )
+
         if config["pii_fields"]:
-            logger.info("Apply transformation for pii data")
-            pii_transformed_df = spark_utils.transformation(
-                logger, spark, source_df, processing_dt, initial_spark_schemas,
-                config, collection=f"{collection}_pii", pii=True)
-
-            logger.info("write pii data into required folder")
-            destination_folder = f"data/{domain_name}/pii/{collection}/"
-            destination_path = f"s3://{destination_bucket}/{destination_folder}"
-            spark_utils.writer_parquet(
-                logger, spark, pii_transformed_df, destination_path)
-
-            logger.info("create hive table on pii data")
-            spark_utils.create_hive_tables_on_published(
-                logger, spark, f"{collection}_pii", pii_transformed_df, destination_path, config)
-
-            logger.info("tag pii objects based on rbac model")
+            logger.info("tag the objects as pii based on rbac model")
             utils.tag_objects(
-                logger, destination_bucket, destination_folder, config, table=f"{collection}_pii", access_pii='false' )
-
-        if config["non_pii_fields"]:
-            logger.info("Apply transformation for non-pii data")
-            non_pii_transformed_df = spark_utils.transformation(
-                logger, spark, source_df, processing_dt, initial_spark_schemas,
-                    config, collection=f"{collection}_non_pii", pii=False)
-
-            logger.info("write non-pii data into required folder")
-            destination_folder = f"data/{domain_name}/non-pii/{collection}/"
-            destination_path = f"s3://{destination_bucket}/{destination_folder}"
-            spark_utils.writer_parquet(
-                logger, spark, non_pii_transformed_df, destination_path)
-
-            logger.info("create hive table on non-pii data")
-            spark_utils.create_hive_tables_on_published(
-                    logger, spark, f"{collection}_non_pii", non_pii_transformed_df, destination_path, config)
-
-            logger.info("tag non-pii objects based on rbac model")
-            utils.tag_objects(
-                logger, destination_bucket, destination_folder, config, table=f"{collection}_non_pii", access_pii='false' )
+                logger, destination_bucket, destination_folder, config, table=collection, access_pii='true' )
 
     except BaseException as ex:
         utils.log_end_of_batch(

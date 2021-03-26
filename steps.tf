@@ -28,28 +28,28 @@ resource "aws_s3_bucket_object" "spark_steps_jobs_init" {
   content = file("${path.module}/steps/spark/jobs/__init__.py")
 }
 
-resource "aws_s3_bucket_object" "spark_steps_jobs_vacancy_init" {
+resource "aws_s3_bucket_object" "spark_steps_jobs_unencrypted_init" {
   bucket = data.terraform_remote_state.common.outputs.config_bucket.id
-  key    = "component/kickstart-analytical-dataset-generation/steps/spark/jobs/vacancy/__init__.py"
-  content = file("${path.module}/steps/spark/jobs/vacancy/__init__.py")
+  key    = "component/kickstart-analytical-dataset-generation/steps/spark/jobs/unencrypted/__init__.py"
+  content = file("${path.module}/steps/spark/jobs/unencrypted/__init__.py")
 }
 
-resource "aws_s3_bucket_object" "spark_steps_jobs_vacancy_main" {
+resource "aws_s3_bucket_object" "spark_steps_jobs_unencrypted_main" {
   bucket = data.terraform_remote_state.common.outputs.config_bucket.id
-  key    = "component/kickstart-analytical-dataset-generation/steps/spark/jobs/vacancy/__main__.py"
-  content = file("${path.module}/steps/spark/jobs/vacancy/__main__.py")
+  key    = "component/kickstart-analytical-dataset-generation/steps/spark/jobs/unencrypted/__main__.py"
+  content = file("${path.module}/steps/spark/jobs/unencrypted/__main__.py")
 }
 
-resource "aws_s3_bucket_object" "spark_steps_jobs_application_init" {
+resource "aws_s3_bucket_object" "spark_steps_jobs_encrypted_init" {
   bucket = data.terraform_remote_state.common.outputs.config_bucket.id
-  key    = "component/kickstart-analytical-dataset-generation/steps/spark/jobs/application/__init__.py"
-  content = file("${path.module}/steps/spark/jobs/vacancy/__init__.py")
+  key    = "component/kickstart-analytical-dataset-generation/steps/spark/jobs/encrypted/__init__.py"
+  content = file("${path.module}/steps/spark/jobs/encrypted/__init__.py")
 }
 
-resource "aws_s3_bucket_object" "spark_steps_jobs_application_main" {
+resource "aws_s3_bucket_object" "spark_steps_jobs_encrypted_main" {
   bucket = data.terraform_remote_state.common.outputs.config_bucket.id
-  key    = "component/kickstart-analytical-dataset-generation/steps/spark/jobs/application/__main__.py"
-  content = file("${path.module}/steps/spark/jobs/vacancy/__main__.py")
+  key    = "component/kickstart-analytical-dataset-generation/steps/spark/jobs/encrypted/__main__.py"
+  content = file("${path.module}/steps/spark/jobs/encrypted/__main__.py")
 }
 
 resource "aws_s3_bucket_object" "spark_steps_main" {

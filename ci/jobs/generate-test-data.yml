@@ -3,7 +3,7 @@ jobs:
     max_in_flight: 1
     plan:
       - in_parallel:
-         - get: dataworks-behavioural-framework-test-data
+         - get: dataworks-behavioural-framework
            trigger: false
          - put: meta
            resource: meta-development

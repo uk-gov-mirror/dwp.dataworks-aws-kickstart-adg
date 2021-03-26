@@ -17,7 +17,33 @@ BootstrapActions:
     Path: "s3://${s3_config_bucket}/component/kickstart-analytical-dataset-generation/download_steps_code.sh"
 
 Steps:
-- Name: "submit-job"
+- Name: "submit-job-vacancy"
+  HadoopJarStep:
+    Args:
+    - "spark-submit"
+    - "--master"
+    - "yarn"
+    - "--conf"
+    - "spark.yarn.submit.waitAppCompletion=true"
+    - "--py-files"
+    - "/opt/emr/spark/jobs.zip"
+    - "/opt/emr/spark/main.py"
+    Jar: "command-runner.jar"
+  ActionOnFailure: "${action_on_failure}"
+- Name: "submit-job-application"
+  HadoopJarStep:
+    Args:
+    - "spark-submit"
+    - "--master"
+    - "yarn"
+    - "--conf"
+    - "spark.yarn.submit.waitAppCompletion=true"
+    - "--py-files"
+    - "/opt/emr/spark/jobs.zip"
+    - "/opt/emr/spark/main.py"
+    Jar: "command-runner.jar"
+  ActionOnFailure: "${action_on_failure}"
+- Name: "submit-job-payment"
   HadoopJarStep:
     Args:
     - "spark-submit"

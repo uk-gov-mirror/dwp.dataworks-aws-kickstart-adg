@@ -112,6 +112,41 @@ meta:
               {
                 "additional_step_args": {
                     "submit-job": ["--correlation_id", "$CORRELATION_ID", "--job_name", "$JOB_NAME", "--module_name", "$MODULE_NAME", "--start_dt", "$START_DT", "--end_dt", "$END_DT", "--clean_up_flg", "$CLEAN_UP_FLG"]
+              }
+              }
+              EOF
+              )
+              echo $message_json
+              aws sns publish --topic-arn "$topic_arn" --message "$message_json"
+
+    start-cluster-dev:
+      task: start-cluster
+      config:
+        platform: linux
+        image_resource:
+          type: docker-image
+          source:
+            repository: ((dataworks.docker_awscli_repository))
+            version: ((dataworks.docker_awscli_version))
+            tag: ((dataworks.docker_awscli_version))
+        params:
+          AWS_ROLE_ARN: arn:aws:iam::((aws_account.management)):role/ci
+          AWS_DEFAULT_REGION: ((dataworks.aws_region))
+        run:
+          path: sh
+          args:
+            - -exc
+            - |
+              export AWS_DEFAULT_REGION
+              source /assume-role
+              set +x
+              export topic_arn=arn:aws:sns:${AWS_DEFAULT_REGION}:${AWS_ACC}:trigger_kickstart_adg_process
+              export message_json=$(cat <<EOF
+              {
+                "additional_step_args": {
+                    "submit-job-vacancy": ["--module_name", "vacancy", "--start_dt", "$START_DT", "--end_dt", "$END_DT", "--clean_up_flg", "$CLEAN_UP_FLG", "--e2e_test_flg", "$E2E_TEST_FLG"],
+                    "submit-job-application": ["--module_name", "application", "--start_dt", "$START_DT", "--end_dt", "$END_DT", "--clean_up_flg", "$CLEAN_UP_FLG", "--e2e_test_flg", "$E2E_TEST_FLG"],
+                    "submit-job-payment": ["--module_name", "payment", "--start_dt", "$START_DT", "--end_dt", "$END_DT", "--clean_up_flg", "$CLEAN_UP_FLG", "--e2e_test_flg", "$E2E_TEST_FLG"]
                 }
               }
               EOF
@@ -192,7 +227,7 @@ meta:
           E2E_FEATURE_TAG_FILTER: "aws-kickstart-adg-data-generator"
           ASSUME_DURATION: 10800
         run:
-          dir: dataworks-behavioural-framework-test-data
+          dir: dataworks-behavioural-framework
           path: sh
           args:
             - -exc
@@ -204,5 +239,5 @@ meta:
               ./run-ci.sh \
               "../../../meta"
         inputs:
-          - name: dataworks-behavioural-framework-test-data
+          - name: dataworks-behavioural-framework
           - name: meta

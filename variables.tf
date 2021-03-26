@@ -122,7 +122,6 @@ variable "emr_yarn_memory_gb_per_core_instance" {
 
 variable "emr_ami_id" {
   description = "AMI ID to use for the HBase EMR nodes"
-  default     = "ami-0672faa58b65ff88d"
 }
 
 variable "metadata_store_adg_writer_username" {

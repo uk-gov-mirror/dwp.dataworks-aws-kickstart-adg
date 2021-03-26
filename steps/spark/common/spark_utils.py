@@ -10,7 +10,6 @@ from pyspark.sql import functions as F
 from pyspark.sql.types import *
 
 
-
 def get_spark_session(logger, job_name, module_name, **kwargs):
     try:
         spark = (
@@ -33,7 +32,7 @@ def check_database_exists(catalog, database_name):
     return False
 
 def check_table_exists(catalog, table_name, database_name):
-    if [True for table in catalog.listTables(database_name) if table_name in table.name]:
+    if [True for table in catalog.listTables(database_name) if table_name == table.name]:
         return True
     return False
 
@@ -59,6 +58,7 @@ def convert_to_spark_schema(logger, datatype):
 def get_old_schema(logger, spark, schema, database_name, table_name):
     try:
         catalog = Catalog(spark)
+        logger.info(schema)
         schema=StructType([StructField(key, eval(convert_to_spark_schema(logger, value))(), True) for key, value in schema.items()])
         if check_database_exists(catalog, database_name):
             if check_table_exists(catalog, table_name, database_name):
@@ -67,8 +67,8 @@ def get_old_schema(logger, spark, schema, database_name, table_name):
                 schema = latest_hive_schema_df.schema
         return schema
 
-    except BaseException as e:
-        logger.error("Failed to get old schema because of error: %s", str(e))
+    except BaseException as ex:
+        logger.error("Failed to get old schema because of error: %s", str(ex))
         sys.exit(-1)
 
 def source_extraction(logger, spark, path, sts_token, source_type):
@@ -109,10 +109,9 @@ def get_update_dataframe(logger, new_schema_df, old_schema, new_schema):
     try:
         for column, datatype in old_schema.items():
             if column not in new_schema:
-                logger.warn(f"{column} has been removed in new schema, adding it with default value to maintain backward compatibility")
+                logger.warning(f"{column} has been removed in new schema, adding it with default value to maintain backward compatibility")
                 new_schema_df = new_schema_df.withColumn(column, F.lit(None).cast(old_schema[column]))
             elif new_schema[column] != old_schema[column]:
-                logger.warn(f"{column} datatype has changed to  {new_schema[column]} from {old_schema[column]}. resetting to the old datatype {old_schema[column]} to maintain backward compatibility")
                 new_schema_df = new_schema_df.withColumn(f"{column}_1", F.col(column).cast(old_schema[column])) \
                                              .withColumn("error_desc_1", F.when(F.col(f"{column}_1").isNull(),
                                                                                 F.concat(F.lit(f"Type Conversion for column {column}. The source value is: "),
@@ -144,7 +143,7 @@ def get_evolved_schema(logger, old_schema_df, new_schema_df):
         sys.exit(-1)
 
 
-def transformation(logger, spark, source_df, processing_dt, initial_spark_schemas, config, collection, pii=False):
+def transformation(logger, spark, source_df, processing_dt, initial_spark_schemas, config, collection):
     try:
         if config["module_name"] == "vacancy":
             new_df = source_df.select([F.col(col).alias(re.sub("[^0-9a-zA-Z$]+", " ", col).strip().replace(" ", "_").lower()) for col in source_df.columns])
@@ -159,9 +158,7 @@ def transformation(logger, spark, source_df, processing_dt, initial_spark_schema
             old_df = spark.createDataFrame([], schema)
             evolved_df = get_evolved_schema(logger, old_df, new_df)
 
-            return evolved_df
-
-        elif config["module_name"] == "application":
+        elif config["module_name"] in ("application", "payment") :
             new_df = source_df.select([F.col(col).alias(col[0].lower() + re.sub(r'(?!^)[A-Z]', lambda x: '_' + x.group(0).lower(), col[1:])) for col in source_df.columns])
             new_df = new_df.withColumn("date_uploaded", F.lit(datetime.strftime(processing_dt, "%Y-%m-%d"))) \
                            .withColumn("error_desc", F.lit(None).cast(ArrayType(StringType())))\
@@ -173,20 +170,15 @@ def transformation(logger, spark, source_df, processing_dt, initial_spark_schema
                                   database_name=config["published_database_name"],
                                   table_name=collection)
 
-            old_schema_df = spark.createDataFrame([], old_schema)
+            old_df = spark.createDataFrame([], old_schema)
+            evolved_df = get_evolved_schema(logger, old_df, new_df)
 
-            if pii:
-                pii_new_schema_df = new_df.select([col for col in new_df.columns if col in config["pii_fields"] or col in ("row_hash_id", "date_uploaded", "error_desc") ])
-                pii_evolved_df = get_evolved_schema(logger, old_schema_df, pii_new_schema_df)
-                return pii_evolved_df
-            else:
-                non_pii_new_schema_df = new_df.select([col for col in new_df.columns if col in config["non_pii_fields"] or col in ("row_hash_id", "date_uploaded", "error_desc")])
-                non_pii_evolved_df = get_evolved_schema(logger, old_schema_df, non_pii_new_schema_df)
-                return non_pii_evolved_df
 
     except BaseException as ex:
         logger.error("Failed to transformation the source dataframe because of error: %s", str(ex))
         sys.exit(-1)
+
+    return evolved_df
 
 def writer_parquet(logger, spark, df, path):
     try:
@@ -251,7 +243,7 @@ def clean_up_published_bucket(
         s3 = boto3.resource('s3')
         bucket = s3.Bucket(s3_published_bucket)
         for collection in collections:
-            prefix_name=f'data/{published_database_name}/non-pii/{collection}/'
+            prefix_name=f'data/{published_database_name}/{collection}/'
             deleteObj = bucket.objects.filter(Prefix=prefix_name).delete()
             logger.info("folder deleted: %s", deleteObj)
 

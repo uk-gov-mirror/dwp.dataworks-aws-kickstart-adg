@@ -34,17 +34,16 @@ def get_parameters(logger):
             description="Receive args provided to spark submit job"
         )
 
-        parser.add_argument("--correlation_id", type=str, required=False, default="")
-        parser.add_argument("--job_name", type=str, required=False, default="kicstart")
         parser.add_argument("--module_name", type=str, required=False, default="")
         parser.add_argument("--start_dt", type=str, required=False, default="")
         parser.add_argument("--end_dt", type=str, required=False, default="")
         parser.add_argument("--clean_up_flg", type=str, required=False, default="false")
         parser.add_argument("--e2e_test_flg", type=str, required=False, default="false")
 
+
         args, unrecognized_args = parser.parse_known_args()
         if unrecognized_args:
-            logger.warn("Found unknown parameters during runtime %s", str(unrecognized_args))
+            logger.warning("Found unknown parameters during runtime %s", str(unrecognized_args))
 
     except BaseException as ex:
         logger.error("Failed to get runtime parameters because of error: %s ", str(ex))
@@ -54,21 +53,13 @@ def get_parameters(logger):
 
 def update_runtime_args_to_config(logger, args, config):
     try:
-        if args.correlation_id == "":
-            raise Exception("Correlation not passed during the run time this is required as part of this process")
-        else:
-            config["correlation_id"] = args.correlation_id.lower()
-
-        if args.job_name == "":
-            logger.warn("Job_Name Passed as blank, setting this variable to kickstart")
-            config["job_name"] = "kickstart"
-        else:
-            config["job_name"] = args.job_name.lower()
-
-        if args.module_name == "":
-            raise Exception("No module name passed please set the value of module as vacancy, application or payment and re-submit the jobs")
+        if args.module_name.lower() not in ("vacancy", "application", "payment"):
+            raise Exception("module name can be either vacancy, application or payment and re-submit the jobs using appropiate choice")
         else:
             config["module_name"] = args.module_name.lower()
+            config["correlation_id"] = f"kickstart_{args.module_name}_analytical_dataset_generation"
+            config["job_name"] = "kickstart"
+            config["encryption_type"] = "unencrypted" if args.module_name.lower() == "vacancy" else "encrypted"
 
         if args.start_dt == "":
             config["start_date"] = get_last_process_dt(logger, **config)
@@ -81,13 +72,13 @@ def update_runtime_args_to_config(logger, args, config):
             config["end_date"] = args.end_dt
 
         if args.clean_up_flg == "":
-            logger.warn("clean_up_flg Passed as blank, setting this variable to False as default")
+            logger.warning("clean_up_flg Passed as blank, setting this variable to False as default")
             config["clean_up_flag"] = "false"
         else:
             config["clean_up_flag"] = args.clean_up_flg.lower()
 
         if args.e2e_test_flg == "":
-            logger.warn("clean_up_flg Passed as blank, setting this variable to False as default")
+            logger.warning("clean_up_flg Passed as blank, setting this variable to False as default")
             config["e2e_test_flag"] = "false"
         else:
             config["e2e_test_flag"] = args.e2e_test_flg.lower()
