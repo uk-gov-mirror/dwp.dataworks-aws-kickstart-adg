@@ -62,7 +62,7 @@ def update_runtime_args_to_config(logger, args, config):
             config["encryption_type"] = "unencrypted" if args.module_name.lower() == "vacancy" else "encrypted"
 
         if args.start_dt == "":
-            config["start_date"] = get_last_process_dt(logger, **config)
+            config["start_date"] = datetime.strftime(get_last_process_dt(logger, **config), "%Y-%m-%d")
         else:
             config["start_date"] = args.start_dt
 
