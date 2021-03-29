@@ -50,3 +50,24 @@ resources:
 
   - name: meta-qa
     type: meta
+
+  - name: meta-development-new
+    type: meta
+
+  - name: dataworks-aws-kickstart-adg-new
+    type: git
+    source:
+      branch: Add_codes_for_grant_applications
+      uri: https://github.com/dwp/dataworks-aws-kickstart-adg.git
+      access_token: ((dataworks-secrets.concourse_github_pat))
+    webhook_token: ((dataworks.concourse_github_webhook_token))
+    check_every: 720h
+
+  - name: dataworks-behavioural-framework-new
+    type: git
+    source:
+      branch: Update_Kickstart_End_to_End_Test_Scenario
+      uri: https://github.com/dwp/dataworks-behavioural-framework.git
+      access_token: ((dataworks-secrets.concourse_github_pat))
+    check_every: 5m
+    webhook_token: ((dataworks.concourse_github_webhook_token))

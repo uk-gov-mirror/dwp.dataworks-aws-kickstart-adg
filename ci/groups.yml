@@ -26,3 +26,6 @@ groups:
   - name: generate-test-data
     jobs:
       - generate-test-data-dev
+  - name: testing-grants-payments
+    jobs:
+      - development-new
