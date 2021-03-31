@@ -47,9 +47,9 @@ def execute(logger, spark,  keys, s3_client, processing_dt, run_id, sts_token, c
         logger.info("write data into required destination")
 
         if config["pii_fields"]:
-            destination_folder = f"data/{domain_name}/non-pii/{collection}/"
-        elif config["non_pii_fields"]:
             destination_folder = f"data/{domain_name}/pii/{collection}/"
+        elif config["non_pii_fields"]:
+            destination_folder = f"data/{domain_name}/non-pii/{collection}/"
 
         destination_path = f"s3://{destination_bucket}/{destination_folder}"
         spark_utils.writer_parquet(

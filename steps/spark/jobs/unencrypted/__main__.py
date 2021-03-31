@@ -24,7 +24,7 @@ def execute(logger, spark,  keys, s3_client, processing_dt, run_id, sts_token, c
         logger.info("Write data into required folder")
         destination_bucket = config['s3_published_bucket']
         domain_name=config["published_database_name"]
-        destination_folder = f"data/{domain_name}/{collection}/"
+        destination_folder = f"data/{domain_name}/non-pii/{collection}/"
         destination_path = f"s3://{destination_bucket}/{destination_folder}"
         spark_utils.writer_parquet(
                     logger, spark, transformed_df, destination_path)
