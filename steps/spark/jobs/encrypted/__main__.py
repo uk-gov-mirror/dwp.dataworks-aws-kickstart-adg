@@ -32,14 +32,9 @@ def execute(logger, spark,  keys, s3_client, processing_dt, run_id, sts_token, c
         config["pii_fields"], config["non_pii_fields"] = fields_classifications[0], fields_classifications[1]
 
         logger.info("Convert the json record into spark dataframe")
-        path = json.loads(json.dumps(decrypted_key_content["data"]).replace("true", '"true"').replace("false", '"true"'))
-        logger.info(path)
+        path = json.loads(json.dumps(decrypted_key_content["data"]).replace("true", '"true"').replace("false", '"false"'))
         source_df = spark_utils.source_extraction(
             logger, spark, path, sts_token, source_type="json")
-
-        if collection == "payment":
-            source_df.show(truncate=False)
-            source_df.printSchema()
 
         destination_bucket = config['s3_published_bucket']
         domain_name=config["published_database_name"]
@@ -50,7 +45,12 @@ def execute(logger, spark,  keys, s3_client, processing_dt, run_id, sts_token, c
                 config, collection)
 
         logger.info("write data into required destination")
-        destination_folder = f"data/{domain_name}/{collection}/"
+
+        if config["pii_fields"]:
+            destination_folder = f"data/{domain_name}/non-pii/{collection}/"
+        elif config["non_pii_fields"]:
+            destination_folder = f"data/{domain_name}/pii/{collection}/"
+
         destination_path = f"s3://{destination_bucket}/{destination_folder}"
         spark_utils.writer_parquet(
                 logger, spark, transformed_df, destination_path)
@@ -59,14 +59,18 @@ def execute(logger, spark,  keys, s3_client, processing_dt, run_id, sts_token, c
         spark_utils.create_hive_tables_on_published(
                 logger, spark, collection, transformed_df, destination_path, config)
 
-        logger.info("tag non-pii objects based on rbac model")
-        utils.tag_objects(
-            logger, destination_bucket, destination_folder, config, table=collection, access_pii='false' )
-
         if config["pii_fields"]:
             logger.info("tag the objects as pii based on rbac model")
             utils.tag_objects(
-                logger, destination_bucket, destination_folder, config, table=collection, access_pii='true' )
+                logger, destination_bucket, destination_folder, config, table=collection, access_pii='true'
+            )
+        elif config["non_pii_fields"]:
+            logger.info("tag non-pii objects based on rbac model")
+            utils.tag_objects(
+                logger, destination_bucket, destination_folder, config, table=collection, access_pii='false'
+            )
+
+
 
     except BaseException as ex:
         utils.log_end_of_batch(

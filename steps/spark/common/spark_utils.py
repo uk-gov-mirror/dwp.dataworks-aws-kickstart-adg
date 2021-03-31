@@ -58,7 +58,6 @@ def convert_to_spark_schema(logger, datatype):
 def get_old_schema(logger, spark, schema, database_name, table_name):
     try:
         catalog = Catalog(spark)
-        logger.info(schema)
         schema=StructType([StructField(key, eval(convert_to_spark_schema(logger, value))(), True) for key, value in schema.items()])
         if check_database_exists(catalog, database_name):
             if check_table_exists(catalog, table_name, database_name):
