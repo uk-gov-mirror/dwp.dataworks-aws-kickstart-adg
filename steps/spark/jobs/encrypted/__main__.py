@@ -2,6 +2,7 @@ import importlib
 import json
 import sys
 import os
+import re
 from datetime import datetime, timedelta, date
 
 def execute(logger, spark,  keys, s3_client, processing_dt, run_id, sts_token, collection, initial_spark_schemas, config):
@@ -26,19 +27,18 @@ def execute(logger, spark,  keys, s3_client, processing_dt, run_id, sts_token, c
         logger.info("Decrypt the data")
         decrypted_key_content = json.loads(utils.decrypt(logger, plain_text_key, iv, encrypted_key_content))
 
-        logger.info(json.dumps(decrypted_key_content))
-
         logger.info("Extracting PII and NON-PII fields")
         fields_classifications = utils.get_pii_non_pii_fields(logger, decrypted_key_content)
         config["pii_fields"], config["non_pii_fields"] = fields_classifications[0], fields_classifications[1]
 
         logger.info("Convert the json record into spark dataframe")
-        path = decrypted_key_content["data"]
+        path = json.loads(json.dumps(decrypted_key_content["data"]).replace("true", '"true"').replace("false", '"true"'))
+        logger.info(path)
         source_df = spark_utils.source_extraction(
             logger, spark, path, sts_token, source_type="json")
 
         if collection == "payment":
-            source_df.show()
+            source_df.show(truncate=False)
             source_df.printSchema()
 
         destination_bucket = config['s3_published_bucket']
