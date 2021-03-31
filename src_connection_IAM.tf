@@ -3,9 +3,9 @@ data "aws_iam_policy_document" "dw_ksr_assume_role" {
     effect = "Allow"
 
     principals {
-      type        = "AWS"
+      type = "AWS"
       identifiers = [aws_iam_role.kickstart_analytical_dataset_generator.arn,
-                     aws_iam_role.kickstart_adg_emr_service.arn]
+      aws_iam_role.kickstart_adg_emr_service.arn]
     }
 
     principals {

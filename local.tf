@@ -1,13 +1,13 @@
 locals {
-  emr_cluster_name                = "kickstart-analytical-dataset-generator"
-  master_instance_type            = "m5.2xlarge"
-  master_instance_count           = 1
-  core_instance_type              = "m5.2xlarge"
-  core_instance_count             = 1
-  task_instance_type              = "m5.2xlarge"
-  task_instance_count             = 0
-  dks_port                        = 8443
-  secret_name                     = "/kickstart/adg"
+  emr_cluster_name      = "kickstart-analytical-dataset-generator"
+  master_instance_type  = "m5.2xlarge"
+  master_instance_count = 1
+  core_instance_type    = "m5.2xlarge"
+  core_instance_count   = 1
+  task_instance_type    = "m5.2xlarge"
+  task_instance_count   = 0
+  dks_port              = 8443
+  secret_name           = "/kickstart/adg"
 
   env_certificate_bucket = "dw-${local.environment}-public-certificates"
   dks_endpoint           = data.terraform_remote_state.crypto.outputs.dks_endpoint[local.environment]
@@ -102,18 +102,18 @@ locals {
     production  = "TERMINATE_CLUSTER"
   }
 
-  cw_agent_namespace                   = "/app/kickstart_analytical_dataset_generator"
-  cw_agent_log_group_name              = "/app/kickstart_analytical_dataset_generator"
-  cw_agent_bootstrap_loggrp_name       = "/app/kickstart_analytical_dataset_generator/bootstrap_actions"
-  cw_agent_steps_loggrp_name           = "/app/kickstart_analytical_dataset_generator/step_logs"
-  cw_agent_yarnspark_loggrp_name       = "/app/kickstart_analytical_dataset_generator/yarn-spark_logs"
-  cw_agent_e2e_loggroup_name           = "/app/kickstart_analytical_dataset_generator/e2e_logs"
+  cw_agent_namespace             = "/app/kickstart_analytical_dataset_generator"
+  cw_agent_log_group_name        = "/app/kickstart_analytical_dataset_generator"
+  cw_agent_bootstrap_loggrp_name = "/app/kickstart_analytical_dataset_generator/bootstrap_actions"
+  cw_agent_steps_loggrp_name     = "/app/kickstart_analytical_dataset_generator/step_logs"
+  cw_agent_yarnspark_loggrp_name = "/app/kickstart_analytical_dataset_generator/yarn-spark_logs"
+  cw_agent_e2e_loggroup_name     = "/app/kickstart_analytical_dataset_generator/e2e_logs"
 
   cw_agent_metrics_collection_interval = 60
 
-  s3_log_prefix            = "emr/kickstart_analytical_dataset_generator"
+  s3_log_prefix = "emr/kickstart_analytical_dataset_generator"
 
-  data_pipeline_metadata   = data.terraform_remote_state.internal_compute.outputs.data_pipeline_metadata_dynamo.name
+  data_pipeline_metadata = data.terraform_remote_state.internal_compute.outputs.data_pipeline_metadata_dynamo.name
 
   published_db = "uc_kickstart"
 

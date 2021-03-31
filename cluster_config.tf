@@ -50,19 +50,19 @@ resource "aws_s3_bucket_object" "steps" {
 
 # See https://aws.amazon.com/blogs/big-data/best-practices-for-successfully-managing-memory-for-apache-spark-applications-on-amazon-emr/
 locals {
-  spark_num_cores_per_node            = var.emr_num_cores_per_core_instance[local.environment] - 1
-  spark_num_nodes                     = local.core_instance_count + local.task_instance_count + local.master_instance_count
-  spark_executor_cores                = var.num_cores_per_executor[local.environment]
-  spark_total_avaliable_cores         = local.spark_num_cores_per_node * local.spark_num_nodes
-  spark_total_avaliable_executors     = ceil(local.spark_total_avaliable_cores/local.spark_executor_cores) - 1
-  spark_num_executors_per_instance    = ceil(local.spark_total_avaliable_executors/local.spark_num_nodes)
-  spark_executor_total_memory         = floor(var.ram_memory_per_node[local.environment]/local.spark_num_executors_per_instance) - 10
-  spark_executor_memoryOverhead       = ceil(local.spark_executor_total_memory * 0.10)
-  spark_executor_memory               = floor(local.spark_executor_total_memory - local.spark_executor_memoryOverhead)
-  spark_driver_memory                 = 1
-  spark_driver_cores                  = 1
-  spark_default_parallelism           = local.spark_num_executors_per_instance * local.spark_executor_cores * 2
-  spark_kyro_buffer                   = var.spark_kyro_buffer[local.environment]
+  spark_num_cores_per_node         = var.emr_num_cores_per_core_instance[local.environment] - 1
+  spark_num_nodes                  = local.core_instance_count + local.task_instance_count + local.master_instance_count
+  spark_executor_cores             = var.num_cores_per_executor[local.environment]
+  spark_total_avaliable_cores      = local.spark_num_cores_per_node * local.spark_num_nodes
+  spark_total_avaliable_executors  = ceil(local.spark_total_avaliable_cores / local.spark_executor_cores) - 1
+  spark_num_executors_per_instance = ceil(local.spark_total_avaliable_executors / local.spark_num_nodes)
+  spark_executor_total_memory      = floor(var.ram_memory_per_node[local.environment] / local.spark_num_executors_per_instance) - 10
+  spark_executor_memoryOverhead    = ceil(local.spark_executor_total_memory * 0.10)
+  spark_executor_memory            = floor(local.spark_executor_total_memory - local.spark_executor_memoryOverhead)
+  spark_driver_memory              = 1
+  spark_driver_cores               = 1
+  spark_default_parallelism        = local.spark_num_executors_per_instance * local.spark_executor_cores * 2
+  spark_kyro_buffer                = var.spark_kyro_buffer[local.environment]
 }
 
 resource "aws_s3_bucket_object" "configurations" {
@@ -70,28 +70,28 @@ resource "aws_s3_bucket_object" "configurations" {
   key    = "emr/kickstart_adg/configurations.yaml"
   content = templatefile("${path.module}/cluster_config/configurations.yaml.tpl",
     {
-      s3_log_bucket                       = data.terraform_remote_state.security-tools.outputs.logstore_bucket.id
-      s3_log_prefix                       = local.s3_log_prefix
-      s3_published_bucket                 = data.terraform_remote_state.common.outputs.published_bucket.id
-      proxy_no_proxy                      = replace(replace(local.no_proxy, ",", "|"), ".s3", "*.s3")
-      proxy_http_host                     = data.terraform_remote_state.internal_compute.outputs.internet_proxy.host
-      proxy_http_port                     = data.terraform_remote_state.internal_compute.outputs.internet_proxy.port
-      proxy_https_host                    = data.terraform_remote_state.internal_compute.outputs.internet_proxy.host
-      proxy_https_port                    = data.terraform_remote_state.internal_compute.outputs.internet_proxy.port
-      spark_executor_cores                = local.spark_executor_cores
-      spark_executor_memory               = local.spark_executor_memory
-      spark_executor_memoryOverhead       = local.spark_executor_memoryOverhead
-      spark_driver_memory                 = local.spark_driver_memory
-      spark_driver_cores                  = local.spark_driver_cores
-      spark_executor_instances            = local.spark_num_executors_per_instance
-      spark_default_parallelism           = local.spark_default_parallelism
-      spark_kyro_buffer                   = local.spark_kyro_buffer
-      hive_metsatore_username             = data.terraform_remote_state.internal_compute.outputs.metadata_store_users.kickstart_adg_writer.username
-      hive_metastore_pwd                  = data.terraform_remote_state.internal_compute.outputs.metadata_store_users.kickstart_adg_writer.secret_name
-      hive_metastore_endpoint             = data.terraform_remote_state.internal_compute.outputs.hive_metastore_v2.rds_cluster.endpoint
-      hive_metastore_database_name        = data.terraform_remote_state.internal_compute.outputs.hive_metastore_v2.rds_cluster.database_name
-      environment                         = local.environment
-      }
+      s3_log_bucket                 = data.terraform_remote_state.security-tools.outputs.logstore_bucket.id
+      s3_log_prefix                 = local.s3_log_prefix
+      s3_published_bucket           = data.terraform_remote_state.common.outputs.published_bucket.id
+      proxy_no_proxy                = replace(replace(local.no_proxy, ",", "|"), ".s3", "*.s3")
+      proxy_http_host               = data.terraform_remote_state.internal_compute.outputs.internet_proxy.host
+      proxy_http_port               = data.terraform_remote_state.internal_compute.outputs.internet_proxy.port
+      proxy_https_host              = data.terraform_remote_state.internal_compute.outputs.internet_proxy.host
+      proxy_https_port              = data.terraform_remote_state.internal_compute.outputs.internet_proxy.port
+      spark_executor_cores          = local.spark_executor_cores
+      spark_executor_memory         = local.spark_executor_memory
+      spark_executor_memoryOverhead = local.spark_executor_memoryOverhead
+      spark_driver_memory           = local.spark_driver_memory
+      spark_driver_cores            = local.spark_driver_cores
+      spark_executor_instances      = local.spark_num_executors_per_instance
+      spark_default_parallelism     = local.spark_default_parallelism
+      spark_kyro_buffer             = local.spark_kyro_buffer
+      hive_metsatore_username       = data.terraform_remote_state.internal_compute.outputs.metadata_store_users.kickstart_adg_writer.username
+      hive_metastore_pwd            = data.terraform_remote_state.internal_compute.outputs.metadata_store_users.kickstart_adg_writer.secret_name
+      hive_metastore_endpoint       = data.terraform_remote_state.internal_compute.outputs.hive_metastore_v2.rds_cluster.endpoint
+      hive_metastore_database_name  = data.terraform_remote_state.internal_compute.outputs.hive_metastore_v2.rds_cluster.database_name
+      environment                   = local.environment
+    }
   )
 }
 

@@ -45,7 +45,7 @@ variable "emr_core_instance_count" {
   }
 }
 
-variable "num_cores_per_executor"{
+variable "num_cores_per_executor" {
   default = {
     development = "5"
     qa          = "5"
@@ -55,7 +55,7 @@ variable "num_cores_per_executor"{
   }
 }
 
-variable "num_executors_per_node"{
+variable "num_executors_per_node" {
   default = {
     development = "1"
     qa          = "1"
@@ -65,7 +65,7 @@ variable "num_executors_per_node"{
   }
 }
 
-variable "ram_memory_per_node"{
+variable "ram_memory_per_node" {
   default = {
     development = "32"
     qa          = "32"

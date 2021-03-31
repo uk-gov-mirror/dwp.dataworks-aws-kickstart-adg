@@ -1,15 +1,15 @@
 
 data "aws_iam_policy_document" "kickstart_adg_ebs_cmk" {
   statement {
-    sid     = "EnableIAMPermissionsCI"
-    effect  = "Allow"
+    sid    = "EnableIAMPermissionsCI"
+    effect = "Allow"
 
     principals {
       identifiers = [data.aws_iam_role.ci.arn]
       type        = "AWS"
     }
 
-    actions   = [
+    actions = [
       "kms:Create*",
       "kms:Describe*",
       "kms:Enable*",
@@ -27,15 +27,15 @@ data "aws_iam_policy_document" "kickstart_adg_ebs_cmk" {
   }
 
   statement {
-    sid     = "EnableIAMPermissionsAdministrator"
-    effect  = "Allow"
+    sid    = "EnableIAMPermissionsAdministrator"
+    effect = "Allow"
 
     principals {
       identifiers = [data.aws_iam_role.administrator.arn]
       type        = "AWS"
     }
 
-    actions   = [
+    actions = [
       "kms:Create*",
       "kms:Describe*",
       "kms:Enable*",
@@ -136,7 +136,7 @@ resource "aws_kms_key" "kickstart_adg_ebs_cmk" {
   deletion_window_in_days = 7
   is_enabled              = true
   enable_key_rotation     = true
-  policy                  =  data.aws_iam_policy_document.kickstart_adg_ebs_cmk.json
+  policy                  = data.aws_iam_policy_document.kickstart_adg_ebs_cmk.json
 
   # ProtectsSensitiveData = "True" - the ADG cluster decrypts sensitive data
   # that it reads from HBase. It can potentially spill this to disk if it can't

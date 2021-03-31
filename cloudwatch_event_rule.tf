@@ -8,7 +8,7 @@ resource "aws_cloudwatch_event_target" "kickstart_adg_sns_topic_target" {
   rule      = aws_cloudwatch_event_rule.kickstart_adg_sns_topic_schedule.name
   target_id = "kickstart_adg_trigger_message_sns"
   arn       = aws_sns_topic.trigger_kickstart_adg_sns.arn
-  input = <<DOC
+  input     = <<DOC
 {
 "additional_step_args": {
   "submit-job-vacancy": ["--module_name", "vacancy"],

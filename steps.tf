@@ -1,54 +1,54 @@
 resource "aws_s3_bucket_object" "spark_steps_common_init" {
-  bucket = data.terraform_remote_state.common.outputs.config_bucket.id
-  key    = "component/kickstart-analytical-dataset-generation/steps/spark/common/__init__.py"
+  bucket  = data.terraform_remote_state.common.outputs.config_bucket.id
+  key     = "component/kickstart-analytical-dataset-generation/steps/spark/common/__init__.py"
   content = file("${path.module}/steps/spark/common/__init__.py")
 }
 
 resource "aws_s3_bucket_object" "spark_steps_common_logger" {
-  bucket = data.terraform_remote_state.common.outputs.config_bucket.id
-  key    = "component/kickstart-analytical-dataset-generation/steps/spark/common/logger.py"
+  bucket  = data.terraform_remote_state.common.outputs.config_bucket.id
+  key     = "component/kickstart-analytical-dataset-generation/steps/spark/common/logger.py"
   content = file("${path.module}/steps/spark/common/logger.py")
 }
 
 resource "aws_s3_bucket_object" "spark_steps_common_spark_utils" {
-  bucket = data.terraform_remote_state.common.outputs.config_bucket.id
-  key    = "component/kickstart-analytical-dataset-generation/steps/spark/common/spark_utils.py"
+  bucket  = data.terraform_remote_state.common.outputs.config_bucket.id
+  key     = "component/kickstart-analytical-dataset-generation/steps/spark/common/spark_utils.py"
   content = file("${path.module}/steps/spark/common/spark_utils.py")
 }
 
 resource "aws_s3_bucket_object" "spark_steps_common_utils" {
-  bucket = data.terraform_remote_state.common.outputs.config_bucket.id
-  key    = "component/kickstart-analytical-dataset-generation/steps/spark/common/utils.py"
+  bucket  = data.terraform_remote_state.common.outputs.config_bucket.id
+  key     = "component/kickstart-analytical-dataset-generation/steps/spark/common/utils.py"
   content = file("${path.module}/steps/spark/common/utils.py")
 }
 
 resource "aws_s3_bucket_object" "spark_steps_jobs_init" {
-  bucket = data.terraform_remote_state.common.outputs.config_bucket.id
-  key    = "component/kickstart-analytical-dataset-generation/steps/spark/jobs/__init__.py"
+  bucket  = data.terraform_remote_state.common.outputs.config_bucket.id
+  key     = "component/kickstart-analytical-dataset-generation/steps/spark/jobs/__init__.py"
   content = file("${path.module}/steps/spark/jobs/__init__.py")
 }
 
 resource "aws_s3_bucket_object" "spark_steps_jobs_unencrypted_init" {
-  bucket = data.terraform_remote_state.common.outputs.config_bucket.id
-  key    = "component/kickstart-analytical-dataset-generation/steps/spark/jobs/unencrypted/__init__.py"
+  bucket  = data.terraform_remote_state.common.outputs.config_bucket.id
+  key     = "component/kickstart-analytical-dataset-generation/steps/spark/jobs/unencrypted/__init__.py"
   content = file("${path.module}/steps/spark/jobs/unencrypted/__init__.py")
 }
 
 resource "aws_s3_bucket_object" "spark_steps_jobs_unencrypted_main" {
-  bucket = data.terraform_remote_state.common.outputs.config_bucket.id
-  key    = "component/kickstart-analytical-dataset-generation/steps/spark/jobs/unencrypted/__main__.py"
+  bucket  = data.terraform_remote_state.common.outputs.config_bucket.id
+  key     = "component/kickstart-analytical-dataset-generation/steps/spark/jobs/unencrypted/__main__.py"
   content = file("${path.module}/steps/spark/jobs/unencrypted/__main__.py")
 }
 
 resource "aws_s3_bucket_object" "spark_steps_jobs_encrypted_init" {
-  bucket = data.terraform_remote_state.common.outputs.config_bucket.id
-  key    = "component/kickstart-analytical-dataset-generation/steps/spark/jobs/encrypted/__init__.py"
+  bucket  = data.terraform_remote_state.common.outputs.config_bucket.id
+  key     = "component/kickstart-analytical-dataset-generation/steps/spark/jobs/encrypted/__init__.py"
   content = file("${path.module}/steps/spark/jobs/encrypted/__init__.py")
 }
 
 resource "aws_s3_bucket_object" "spark_steps_jobs_encrypted_main" {
-  bucket = data.terraform_remote_state.common.outputs.config_bucket.id
-  key    = "component/kickstart-analytical-dataset-generation/steps/spark/jobs/encrypted/__main__.py"
+  bucket  = data.terraform_remote_state.common.outputs.config_bucket.id
+  key     = "component/kickstart-analytical-dataset-generation/steps/spark/jobs/encrypted/__main__.py"
   content = file("${path.module}/steps/spark/jobs/encrypted/__main__.py")
 }
 
