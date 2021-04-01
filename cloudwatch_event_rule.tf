@@ -11,9 +11,7 @@ resource "aws_cloudwatch_event_target" "kickstart_adg_sns_topic_target" {
   input     = <<DOC
 {
 "additional_step_args": {
-  "submit-job-vacancy": ["--module_name", "vacancy"],
-  "submit-job-application": ["--module_name", "application"],
-  "submit-job-payment": ["--module_name", "payment"]
+  "submit-job-vacancy": ["--module_name", "vacancy"]
 }
 }
 DOC
