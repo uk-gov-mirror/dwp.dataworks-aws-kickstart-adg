@@ -17,7 +17,7 @@ BootstrapActions:
     Path: "s3://${s3_config_bucket}/component/kickstart-analytical-dataset-generation/download_steps_code.sh"
 
 Steps:
-- Name: "submit-job"
+- Name: "submit-job-vacancy"
   HadoopJarStep:
     Args:
     - "spark-submit"

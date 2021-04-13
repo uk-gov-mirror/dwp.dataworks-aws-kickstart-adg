@@ -45,7 +45,7 @@ variable "emr_core_instance_count" {
   }
 }
 
-variable "num_cores_per_executor"{
+variable "num_cores_per_executor" {
   default = {
     development = "5"
     qa          = "5"
@@ -55,7 +55,7 @@ variable "num_cores_per_executor"{
   }
 }
 
-variable "num_executors_per_node"{
+variable "num_executors_per_node" {
   default = {
     development = "1"
     qa          = "1"
@@ -65,7 +65,7 @@ variable "num_executors_per_node"{
   }
 }
 
-variable "ram_memory_per_node"{
+variable "ram_memory_per_node" {
   default = {
     development = "32"
     qa          = "32"
@@ -122,7 +122,6 @@ variable "emr_yarn_memory_gb_per_core_instance" {
 
 variable "emr_ami_id" {
   description = "AMI ID to use for the HBase EMR nodes"
-  default     = "ami-0672faa58b65ff88d"
 }
 
 variable "metadata_store_adg_writer_username" {

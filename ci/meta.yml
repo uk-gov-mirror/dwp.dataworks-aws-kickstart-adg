@@ -111,13 +111,14 @@ meta:
               export message_json=$(cat <<EOF
               {
                 "additional_step_args": {
-                    "submit-job": ["--correlation_id", "$CORRELATION_ID", "--job_name", "$JOB_NAME", "--module_name", "$MODULE_NAME", "--start_dt", "$START_DT", "--end_dt", "$END_DT", "--clean_up_flg", "$CLEAN_UP_FLG"]
-                }
+                    "submit-job-vacancy": ["--module_name", "vacancy", "--start_dt", "$START_DT", "--end_dt", "$END_DT", "--clean_up_flg", "$CLEAN_UP_FLG", "--e2e_test_flg", "$E2E_TEST_FLG"],
+                    }
               }
               EOF
               )
               echo $message_json
               aws sns publish --topic-arn "$topic_arn" --message "$message_json"
+
 
     stop-cluster:
       task: stop-cluster
@@ -145,6 +146,7 @@ meta:
               aws emr terminate-clusters --cluster-ids $CLUSTER_ID
               done
 
+
     run-e2e-tests:
       task: run-e2e-tests
       config:
@@ -159,6 +161,37 @@ meta:
           AWS_DEFAULT_REGION: ((dataworks.aws_region))
           E2E_TEST_TIMEOUT: 7200
           E2E_FEATURE_TAG_FILTER: "aws-kickstart-adg"
+          ASSUME_DURATION: 10800
+        run:
+          dir: dataworks-behavioural-framework
+          path: sh
+          args:
+            - -exc
+            - |
+              source /assume-role
+              set +x
+              export E2E_FEATURE_TAG_FILTER="@${E2E_FEATURE_TAG_FILTER}"
+              cd src/runners
+              ./run-ci.sh \
+              "../../../meta"
+        inputs:
+          - name: dataworks-behavioural-framework
+          - name: meta
+
+    generate-test-data:
+      task: generate-test-data
+      config:
+        platform: linux
+        image_resource:
+          type: docker-image
+          source:
+            repository: ((dataworks.docker_python_boto_behave_repository))
+            tag: ((dataworks.docker_python_boto_behave_version))
+        params:
+          AWS_REGION: ((dataworks.aws_region))
+          AWS_DEFAULT_REGION: ((dataworks.aws_region))
+          E2E_TEST_TIMEOUT: 7200
+          E2E_FEATURE_TAG_FILTER: "aws-kickstart-adg-data-generator"
           ASSUME_DURATION: 10800
         run:
           dir: dataworks-behavioural-framework

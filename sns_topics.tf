@@ -11,9 +11,9 @@ resource "aws_sns_topic" "trigger_kickstart_adg_sns" {
 
 data "aws_iam_policy_document" "kickstart_adg_publish_for_trigger" {
   statement {
-    sid = "TriggerKickstartAdgSNS"
+    sid     = "TriggerKickstartAdgSNS"
     actions = ["SNS:Publish"]
-    effect = "Allow"
+    effect  = "Allow"
 
     principals {
       identifiers = ["events.amazonaws.com"]

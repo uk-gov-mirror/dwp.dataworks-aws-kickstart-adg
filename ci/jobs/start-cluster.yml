@@ -6,12 +6,10 @@ jobs:
           params:
             AWS_ACC: ((aws_account.development))
             AWS_ROLE_ARN: arn:aws:iam::((aws_account.development)):role/ci
-            CORRELATION_ID: "kickstart_vacancy_analytical_dataset_generation"
-            JOB_NAME: "kickstart"
-            MODULE_NAME: "vacancy"
-            START_DT: "2021-02-24"
-            END_DT: "2021-02-25"
-            CLEAN_UP_FLG: True
+            START_DT: "2021-03-24"
+            END_DT: "2021-03-24"
+            CLEAN_UP_FLG: False
+            E2E_TEST_FLG: True
 
   - name: start-cluster-qa
     plan:
@@ -20,12 +18,10 @@ jobs:
           params:
             AWS_ACC: ((aws_account.qa))
             AWS_ROLE_ARN: arn:aws:iam::((aws_account.qa)):role/ci
-            CORRELATION_ID: "kickstart_vacancy_analytical_dataset_generation"
-            JOB_NAME: "kickstart"
-            MODULE_NAME: "vacancy"
-            START_DT: "2021-01-24"
-            END_DT: "2021-01-24"
+            START_DT: "2021-03-24"
+            END_DT: "2021-03-24"
             CLEAN_UP_FLG: False
+            E2E_TEST_FLG: False
 
   - name: start-cluster-integration
     plan:
@@ -34,12 +30,10 @@ jobs:
           params:
             AWS_ACC: ((aws_account.integration))
             AWS_ROLE_ARN: arn:aws:iam::((aws_account.integration)):role/ci
-            CORRELATION_ID: "kickstart_vacancy_analytical_dataset_generation"
-            JOB_NAME: "kickstart"
-            MODULE_NAME: "vacancy"
-            START_DT: "2021-01-24"
-            END_DT: "2021-01-24"
-            CLEAN_UP_FLG: True
+            START_DT: "2021-03-24"
+            END_DT: "2021-03-24"
+            CLEAN_UP_FLG: False
+            E2E_TEST_FLG: False
 
   - name: start-cluster-preprod
     plan:
@@ -48,12 +42,10 @@ jobs:
           params:
             AWS_ACC: ((aws_account.preprod))
             AWS_ROLE_ARN: arn:aws:iam::((aws_account.preprod)):role/ci
-            CORRELATION_ID: "kickstart_vacancy_analytical_dataset_generation"
-            JOB_NAME: "kickstart"
-            MODULE_NAME: "vacancy"
-            START_DT: "2021-01-24"
-            END_DT: "2021-01-24"
+            START_DT: "2021-03-24"
+            END_DT: "2021-03-24"
             CLEAN_UP_FLG: False
+            E2E_TEST_FLG: False
 
   - name: start-cluster-production
     plan:
@@ -62,9 +54,7 @@ jobs:
           params:
             AWS_ACC: ((aws_account.production))
             AWS_ROLE_ARN: arn:aws:iam::((aws_account.production)):role/ci
-            CORRELATION_ID: "kickstart_vacancy_analytical_dataset_generation"
-            JOB_NAME: "kickstart"
-            MODULE_NAME: "vacancy"
-            START_DT: "2021-01-24"
-            END_DT: "2021-01-24"
-            CLEAN_UP_FLG: True
+            START_DT: "2021-03-24"
+            END_DT: "2021-03-24"
+            CLEAN_UP_FLG: False
+            E2E_TEST_FLG: False

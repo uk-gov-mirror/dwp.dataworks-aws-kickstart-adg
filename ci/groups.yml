@@ -23,3 +23,6 @@ groups:
       - stop-cluster-integration
       - stop-cluster-preprod
       - stop-cluster-production
+  - name: generate-test-data
+    jobs:
+      - generate-test-data-dev
