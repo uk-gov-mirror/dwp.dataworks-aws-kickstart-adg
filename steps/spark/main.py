@@ -77,7 +77,9 @@ def main(config):
                     sts_token=None
 
                 logger.info(f'get the list of files for {s3_prefix} in the {config["s3_src_bucket"]} for given module {config["module_name"]} with correlation id {config["correlation_id"]}')
-                s3_client = utils.get_s3_client(sts_token)
+
+                s3_client = utils.get_s3_client(logger, sts_token)
+
                 keys = utils.get_list_keys_for_prefix(logger, s3_client, s3_prefix, s3_bucket=config["s3_src_bucket"])
 
                 if keys:

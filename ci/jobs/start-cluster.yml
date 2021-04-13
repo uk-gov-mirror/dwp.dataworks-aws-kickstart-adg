@@ -6,10 +6,10 @@ jobs:
           params:
             AWS_ACC: ((aws_account.development))
             AWS_ROLE_ARN: arn:aws:iam::((aws_account.development)):role/ci
-            START_DT: "2021-03-24"
-            END_DT: "2021-03-24"
-            CLEAN_UP_FLG: False
-            E2E_TEST_FLG: True
+            START_DT: "2021-04-12"
+            END_DT: "2021-04-12"
+            CLEAN_UP_FLG: "False"
+            E2E_TEST_FLG: "False"
 
   - name: start-cluster-qa
     plan:
@@ -20,8 +20,8 @@ jobs:
             AWS_ROLE_ARN: arn:aws:iam::((aws_account.qa)):role/ci
             START_DT: "2021-03-24"
             END_DT: "2021-03-24"
-            CLEAN_UP_FLG: False
-            E2E_TEST_FLG: False
+            CLEAN_UP_FLG: "False"
+            E2E_TEST_FLG: "False"
 
   - name: start-cluster-integration
     plan:
@@ -32,8 +32,8 @@ jobs:
             AWS_ROLE_ARN: arn:aws:iam::((aws_account.integration)):role/ci
             START_DT: "2021-03-24"
             END_DT: "2021-03-24"
-            CLEAN_UP_FLG: False
-            E2E_TEST_FLG: False
+            CLEAN_UP_FLG: "False"
+            E2E_TEST_FLG: "False"
 
   - name: start-cluster-preprod
     plan:
@@ -44,8 +44,8 @@ jobs:
             AWS_ROLE_ARN: arn:aws:iam::((aws_account.preprod)):role/ci
             START_DT: "2021-03-24"
             END_DT: "2021-03-24"
-            CLEAN_UP_FLG: False
-            E2E_TEST_FLG: False
+            CLEAN_UP_FLG: "False"
+            E2E_TEST_FLG: "False"
 
   - name: start-cluster-production
     plan:
@@ -56,5 +56,5 @@ jobs:
             AWS_ROLE_ARN: arn:aws:iam::((aws_account.production)):role/ci
             START_DT: "2021-03-24"
             END_DT: "2021-03-24"
-            CLEAN_UP_FLG: False
-            E2E_TEST_FLG: False
+            CLEAN_UP_FLG: "False"
+            E2E_TEST_FLG: "False"

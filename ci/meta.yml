@@ -111,7 +111,7 @@ meta:
               export message_json=$(cat <<EOF
               {
                 "additional_step_args": {
-                    "submit-job-vacancy": ["--module_name", "vacancy", "--start_dt", "$START_DT", "--end_dt", "$END_DT", "--clean_up_flg", "$CLEAN_UP_FLG", "--e2e_test_flg", "$E2E_TEST_FLG"],
+                    "submit-job-vacancy": ["--module_name", "vacancy", "--start_dt", "$START_DT", "--end_dt", "$END_DT", "--clean_up_flg", "$CLEAN_UP_FLG", "--e2e_test_flg", "$E2E_TEST_FLG"]
                     }
               }
               EOF
