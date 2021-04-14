@@ -67,7 +67,7 @@ def update_runtime_args_to_config(logger, args, config):
             config["start_date"] = args.start_dt
 
         if args.end_dt == "":
-            config["end_date"] = datetime.strftime(datetime.now(), "%Y-%m-%d")
+            config["end_date"] = datetime.strftime(datetime.now() - timedelta(days=1), "%Y-%m-%d")
         else:
             config["end_date"] = args.end_dt
 
